@@ -3,6 +3,7 @@
 import os
 import csv
 from datetime import datetime, timedelta
+from typing import Optional, List
 
 EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
 METRICS_FILENAME = "last_24h_metrics.csv"
@@ -10,7 +11,8 @@ CONTROL_LOG_FILENAME = "last_24h_control_log.csv"
 
 
 
-def initialize_data_saving(export_dir: str = EXPORT_DIR, machine_ids=None):
+def initialize_data_saving(export_dir: str = EXPORT_DIR,
+                           machine_ids: Optional[List[str]] = None):
     """Set up periodic CSV export directory and optional per-machine folders."""
     os.makedirs(export_dir, exist_ok=True)
     if machine_ids:
@@ -20,7 +22,7 @@ def initialize_data_saving(export_dir: str = EXPORT_DIR, machine_ids=None):
 
 
 def get_historical_data(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
-                        machine_id: str | None = None):
+                        machine_id: Optional[str] = None):
     """Return capacity and counter history filtered to the given timeframe."""
     history = load_recent_metrics(export_dir, machine_id=machine_id)
 
@@ -67,7 +69,7 @@ def get_historical_data(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
 def append_metrics(metrics: dict, machine_id: str,
                    export_dir: str = EXPORT_DIR,
                    filename: str = METRICS_FILENAME,
-                   mode: str | None = None):
+                   mode: Optional[str] = None):
     """Append a row of metrics for a machine and purge old entries.
 
     A ``mode`` column is added so callers can record whether values were
@@ -105,9 +107,9 @@ def append_metrics(metrics: dict, machine_id: str,
 
 
 
-def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: str | None = None,
+def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
                       filename: str = METRICS_FILENAME, hours: int = 24,
-                      fieldnames_hint: list[str] | None = None):
+                      fieldnames_hint: Optional[List[str]] = None):
     """Remove CSV rows older than the specified number of hours for a machine."""
     file_path = os.path.join(export_dir, str(machine_id), filename)
     if not os.path.exists(file_path):
@@ -166,7 +168,7 @@ def purge_old_entries(export_dir: str = EXPORT_DIR, machine_id: str | None = Non
         return
 
 
-def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: str | None = None,
+def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
                         filename: str = METRICS_FILENAME):
     """Return counter history from the 24h metrics file for a machine."""
     file_path = os.path.join(export_dir, str(machine_id), filename)
@@ -229,7 +231,7 @@ def load_recent_metrics(export_dir: str = EXPORT_DIR, machine_id: str | None = N
 def append_control_log(entry: dict, machine_id: str,
                        export_dir: str = EXPORT_DIR,
                        filename: str = CONTROL_LOG_FILENAME,
-                       mode: str | None = None):
+                       mode: Optional[str] = None):
     """Append a row of control log data and purge old entries."""
     machine_dir = os.path.join(export_dir, str(machine_id))
     os.makedirs(machine_dir, exist_ok=True)
@@ -260,15 +262,15 @@ def append_control_log(entry: dict, machine_id: str,
                               fieldnames_hint=list(row.keys()))
 
 
-def purge_old_control_entries(export_dir: str = EXPORT_DIR, machine_id: str | None = None,
+def purge_old_control_entries(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
                               filename: str = CONTROL_LOG_FILENAME, hours: int = 24,
-                              fieldnames_hint: list[str] | None = None):
+                              fieldnames_hint: Optional[List[str]] = None):
     """Remove control log rows older than the specified hours."""
     purge_old_entries(export_dir, machine_id, filename,
                       hours=hours, fieldnames_hint=fieldnames_hint)
 
 
-def load_recent_control_log(export_dir: str = EXPORT_DIR, machine_id: str | None = None,
+def load_recent_control_log(export_dir: str = EXPORT_DIR, machine_id: Optional[str] = None,
                             filename: str = CONTROL_LOG_FILENAME):
     """Return recent control log entries for a machine."""
     file_path = os.path.join(export_dir, str(machine_id), filename)
@@ -290,7 +292,7 @@ def load_recent_control_log(export_dir: str = EXPORT_DIR, machine_id: str | None
 
 
 def get_historical_control_log(timeframe: str = "24h", export_dir: str = EXPORT_DIR,
-                               machine_id: str | None = None):
+                               machine_id: Optional[str] = None):
     """Return control log data filtered to the given timeframe.
 
     Entries are returned newest first regardless of the order stored on disk.
