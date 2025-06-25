@@ -1,0 +1,7 @@
+dash
+dash-bootstrap-components
+python-opcua
+plotly
+pandas
+numpy
+python-i18n
