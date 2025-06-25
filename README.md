@@ -34,3 +34,11 @@ Images used by the dashboard should be placed in an `assets/` directory that
 resides next to the script so Dash can serve them automatically.
 The provided `EnpresorMachine.png` image is included in this `assets/` folder.
 
+Metrics and control logs written by the dashboard are automatically saved
+to an `exports/` directory. This folder will be created at runtime if it does
+not already exist.
+
+The `Audiowide-Regular.ttf` font used when generating PDF reports is kept in
+the repository root. Ensure this file remains in place so the report generator
+can locate it.
+
