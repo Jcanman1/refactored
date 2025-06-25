@@ -1,3 +1,4 @@
+
 import os
 import argparse
 import logging
@@ -125,3 +126,4 @@ if __name__ == "__main__":
             run_async(disconnect_from_server())
         print("Disconnected from server")
         print("Goodbye!")
+
