@@ -14,6 +14,8 @@ from reportlab.graphics import renderPDF
 from reportlab.lib import colors
 import math  # for label angle calculations
 
+from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
+
 
 def debug_machine_data(csv_parent_dir):
     """Debug function to check what data is being loaded from each machine"""
@@ -414,8 +416,42 @@ def generate_report_filename(script_dir):
     
     print(f"Generated filename: {filename}")
     print(f"Full path: {pdf_path}")
-    
+
     return pdf_path
+
+
+def fetch_last_24h_metrics(export_dir: str = METRIC_EXPORT_DIR):
+    """Return the last 24 hours of metrics for all machines.
+
+    This is a thin wrapper around :func:`hourly_data_saving.get_historical_data`
+    that iterates over the machine directories found in ``export_dir``.
+    """
+    if not os.path.isdir(export_dir):
+        return {}
+
+    metrics = {}
+    for machine in sorted(os.listdir(export_dir)):
+        machine_path = os.path.join(export_dir, machine)
+        if os.path.isdir(machine_path):
+            metrics[machine] = get_historical_data(
+                "24h", export_dir=export_dir, machine_id=machine
+            )
+
+    return metrics
+
+
+def build_report(metrics: dict, pdf_path: str, *, use_optimized: bool = False,
+                 export_dir: str = METRIC_EXPORT_DIR) -> None:
+    """Generate a PDF report and write it to ``pdf_path``.
+
+    The ``metrics`` argument is currently unused but is accepted for
+    compatibility with :func:`fetch_last_24h_metrics`.
+    """
+
+    if use_optimized:
+        draw_layout_optimized(pdf_path, export_dir)
+    else:
+        draw_layout_standard(pdf_path, export_dir)
 
 def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, available_height, global_max_firing=None):
     """Draw the three sections for a single machine - OPTIMIZED FOR 2 MACHINES PER PAGE"""
