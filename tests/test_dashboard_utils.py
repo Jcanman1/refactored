@@ -14,7 +14,7 @@ def load_modules(monkeypatch, src_patches=None):
     """Import modules with Dash stubs so import succeeds without real Dash.
 
     ``src_patches`` is an optional dict of attribute names to callables that
-    will be applied to ``EnpresorOPCDataViewBeforeRestructure`` before the
+    will be applied to ``dashboard.reconnection`` before the
     dashboard modules are imported.
     """
     dash = types.ModuleType("dash")
@@ -51,7 +51,7 @@ def load_modules(monkeypatch, src_patches=None):
     monkeypatch.setitem(sys.modules, "dash.dependencies", deps)
     monkeypatch.setitem(sys.modules, "dash_bootstrap_components", dbc)
 
-    src = importlib.import_module("EnpresorOPCDataViewBeforeRestructure")
+    src = importlib.import_module("dashboard.reconnection")
     importlib.reload(src)
     if src_patches:
         for name, value in src_patches.items():

@@ -41,7 +41,6 @@ class TagData:
         self.values.append(value)
         self.latest_value = value
 
->
         if len(self.timestamps) > self.max_points:
             self.timestamps = self.timestamps[-self.max_points :]
             self.values = self.values[-self.max_points :]
