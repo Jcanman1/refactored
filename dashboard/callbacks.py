@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,7 @@ try:  # pragma: no cover - optional dependency
         State,
         callback_context,
         html,
+        dcc,
         no_update,
     )  # type: ignore
     HAS_DASH = True
@@ -43,6 +45,7 @@ except Exception:  # pragma: no cover - provide minimal stubs
             return creator
 
     html = _Module()  # type: ignore
+    dcc = _Module()  # type: ignore
     no_update = None  # type: ignore
     HAS_DASH = False
 
@@ -268,6 +271,83 @@ def register_callbacks() -> None:
         resume_update_thread()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return {"content": csv_data, "filename": f"satake_data_export_{timestamp}.csv"}
+
+    @_dash_callback(
+        Output("section-1-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("production-data-store", "data"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_1_2(n, prod_data, lang):
+        lang = lang or "en"
+        accepts = (prod_data or {}).get("accepts", 47500)
+        rejects = (prod_data or {}).get("rejects", 2500)
+        total = accepts + rejects
+        acc_pct = accepts / total * 100 if total else 0
+        rej_pct = rejects / total * 100 if total else 0
+        try:
+            import plotly.graph_objects as go
+
+            fig = go.Figure(
+                data=[go.Pie(labels=[tr("accepts", lang), tr("rejects", lang)], values=[accepts, rejects], hole=0.4)]
+            )
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
+            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+        except Exception:  # pragma: no cover - plotly missing
+            graph = html.Div(f"{acc_pct:.1f}% / {rej_pct:.1f}%")
+        return html.Div([graph])
+
+    @_dash_callback(
+        Output("section-3-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_3_2(n, lang):
+        lang = lang or "en"
+        status_text = tr("good_status", lang) if app_state.connected else tr("fault_status", lang)
+        return html.Div([
+            html.H6(tr("machine_info_title", lang)),
+            html.Div(f"Status: {status_text}"),
+        ])
+
+    @_dash_callback(
+        Output("section-5-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+    )
+    def update_section_5_2(n):
+        try:
+            import plotly.graph_objects as go
+
+            counts = [random.randint(10, 100) for _ in range(12)]
+            fig = go.Figure(go.Bar(x=list(range(1, 13)), y=counts))
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
+            return dcc.Graph(figure=fig, config={"displayModeBar": False})
+        except Exception:  # pragma: no cover - plotly missing
+            return html.Div("N/A")
+
+    @_dash_callback(
+        Output("section-6-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_6_2(n, lang):
+        lang = lang or "en"
+        return html.Div([
+            html.H6(tr("sensitivity_threshold_alarms_title", lang)),
+            html.Div(tr("no_changes_yet", lang)),
+        ])
+
+    @_dash_callback(
+        Output("section-7-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_7_2(n, lang):
+        lang = lang or "en"
+        return html.Div([
+            html.H6(tr("machine_control_log_title", lang)),
+            html.Div(tr("no_changes_yet", lang)),
+        ])
 
 
 register_callbacks()
