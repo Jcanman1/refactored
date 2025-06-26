@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from pathlib import Path
 from threading import Thread
 from typing import Optional
 
@@ -100,7 +101,18 @@ def delayed_startup_connect(delay: int = 3) -> None:
 
 def load_saved_image():
     """Return previously saved custom image data if available."""
-    return {}
+    path = Path(__file__).resolve().parents[1] / "data" / "custom_image.txt"
+    try:
+        if path.exists():
+            with open(path, "r") as f:
+                data = f.read()
+            logger.info("Custom image loaded successfully")
+            return {"image": data}
+        logger.info("No saved custom image found")
+        return {}
+    except Exception as exc:  # pragma: no cover - rely on filesystem
+        logger.error("Error loading custom image: %s", exc)
+        return {}
 
 __all__ = [
     "start_auto_reconnection",
