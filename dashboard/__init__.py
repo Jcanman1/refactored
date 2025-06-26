@@ -13,6 +13,8 @@ from .opc_client import (
     pause_update_thread,
     resume_update_thread,
 )
+from .startup import start_auto_reconnection, delayed_startup_connect
+from .images import load_saved_image
 from .settings import (
     load_display_settings,
     save_display_settings,
@@ -53,6 +55,8 @@ __all__ = [
     "run_async",
     "pause_update_thread",
     "resume_update_thread",
+    "start_auto_reconnection",
+    "delayed_startup_connect",
     "load_display_settings",
     "save_display_settings",
     "load_ip_addresses",
@@ -71,6 +75,7 @@ __all__ = [
     "convert_capacity_to_lbs",
     "convert_capacity_from_lbs",
     "capacity_unit_label",
+    "load_saved_image",
     "render_new_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",

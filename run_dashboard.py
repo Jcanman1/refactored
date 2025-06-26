@@ -17,12 +17,9 @@ except ImportError:  # pragma: no cover - Python 3.12+
 
 from dashboard import app
 from dashboard.opc_client import run_async, disconnect_from_server
-from EnpresorOPCDataViewBeforeRestructure import (
-    start_auto_reconnection,
-    delayed_startup_connect,
-    load_saved_image,
-    app_state,
-)
+from dashboard.startup import start_auto_reconnection, delayed_startup_connect
+from dashboard.images import load_saved_image
+from dashboard.state import app_state
 
 logger = logging.getLogger(__name__)
 
