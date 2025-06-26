@@ -30,46 +30,56 @@ except Exception:  # pragma: no cover - provide minimal stubs
 
 
 def render_new_dashboard() -> Any:
-    """Return the main dashboard layout with placeholder sections."""
+    """Return the main dashboard layout filled with visible sections."""
 
-    return html.Div(
+    sections = html.Div(
         [
-            html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
-            html.Div(
-                [
-                    html.Div(id="section-1-1", children=[], style={"display": "none"}),
-                    html.Div(id="section-1-2", children=[], style={"display": "none"}),
-                    html.Div(id="section-2", children=[], style={"display": "none"}),
-                    html.Div(id="section-3-1", children=[], style={"display": "none"}),
-                    html.Div(id="section-3-2", children=[], style={"display": "none"}),
-                    html.Div(id="section-4", children=[], style={"display": "none"}),
-                    html.Div(id="section-5-1", children=[], style={"display": "none"}),
-                    html.Div(id="section-5-2", children=[], style={"display": "none"}),
-                    html.Div(id="section-6-1", children=[], style={"display": "none"}),
-                    html.Div(id="section-6-2", children=[], style={"display": "none"}),
-                    html.Div(id="section-7-1", children=[], style={"display": "none"}),
-                    html.Div(id="section-7-2", children=[], style={"display": "none"}),
-                ]
-            ),
+            html.Div(id="section-1-1", children=[dcc.Graph(id="graph-1-1")]),
+            html.Div(id="section-1-2", children=[dcc.Graph(id="graph-1-2")]),
+            html.Div(id="section-2", children=[html.Div("Status Controls")]),
+            html.Div(id="section-3-1", children=[dcc.Graph(id="graph-3-1")]),
+            html.Div(id="section-3-2", children=[dcc.Graph(id="graph-3-2")]),
+            html.Div(id="section-4", children=[dcc.Graph(id="graph-4")]),
+            html.Div(id="section-5-1", children=[dcc.Graph(id="graph-5-1")]),
+            html.Div(id="section-5-2", children=[dcc.Graph(id="graph-5-2")]),
+            html.Div(id="section-6-1", children=[dcc.Graph(id="graph-6-1")]),
+            html.Div(id="section-6-2", children=[dcc.Graph(id="graph-6-2")]),
+            html.Div(id="section-7-1", children=[dcc.Graph(id="graph-7-1")]),
+            html.Div(id="section-7-2", children=[dcc.Graph(id="graph-7-2")]),
         ]
     )
 
+    return html.Div([
+        html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
+        sections,
+    ])
+
 
 def render_floor_machine_layout_with_customizable_names() -> Any:
-    """Return a simple floor/machine management layout."""
+    """Return a layout for managing floors and machines."""
 
     sidebar = html.Div(
         [
-            html.Img(src="/assets/EnpresorMachine.png"),
+            html.Img(src="/assets/EnpresorMachine.png", className="mb-2"),
             dcc.Store(id="floors-data"),
             dcc.Store(id="machines-data"),
             html.Button("Show All Machines", id={"type": "floor-tile", "index": "all"}),
+            html.Div(id="floor-buttons"),
             html.Button("Add Floor", id="add-floor-btn"),
+            html.Div(id="machines-online"),
+            html.Div(id="save-status"),
         ],
         id="sidebar",
     )
 
-    main = html.Div(id="machines-container")
+    main = html.Div(
+        [
+            html.Div("Selected Floor", id="floor-header"),
+            html.Div(id="machines-container"),
+            html.Button("Add Machine", id="add-machine-btn"),
+        ],
+        id="main-content",
+    )
 
     return html.Div([sidebar, main], id="floor-machine-layout")
 
