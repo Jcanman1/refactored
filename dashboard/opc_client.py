@@ -10,15 +10,21 @@ from datetime import datetime
 from threading import Thread
 from typing import Any, Dict
 
-from opcua import Client, ua
+try:  # pragma: no cover - optional dependency
+    from opcua import Client, ua
+except Exception:  # pragma: no cover - optional dependency
+    Client = ua = None  # type: ignore
 
-from EnpresorOPCDataViewBeforeRestructure import (
-    app_state,
-    opc_update_thread,
-    TagData,
-    KNOWN_TAGS,
-    FAST_UPDATE_TAGS,
-)
+from .state import app_state, TagData
+
+# Basic stubs and placeholders
+def opc_update_thread() -> None:  # pragma: no cover - placeholder
+    """Background polling loop stub."""
+    pass
+
+# Known tags and fast update tags are empty by default
+KNOWN_TAGS: Dict[str, str] = {}
+FAST_UPDATE_TAGS: set[str] = set()
 
 
 logger = logging.getLogger(__name__)
