@@ -1,6 +1,6 @@
 """Dashboard package exposing app and utilities."""
 
-from EnpresorOPCDataViewBeforeRestructure import app
+from .app import app
 
 from .state import AppState, TagData, app_state
 from .opc_client import (
