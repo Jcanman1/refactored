@@ -3659,6 +3659,7 @@ def update_machine_dashboard_data(n_intervals, time_state, app_mode, machines_da
                     "capacity_formatted": f"{cap:,.0f}",
                     "accepts_formatted": f"{acc:,.0f}",
                     "rejects_formatted": f"{rej:,.0f}",
+                    "rejects_percent": f"{rej_pct:.1f}",
                     "diagnostic_counter": "0",
                     "capacity": cap,
                     "accepts": acc,
@@ -6021,6 +6022,8 @@ def update_machine_selected_ip_with_save(ip_values, machines_data, floors_data, 
         State("production-data-store", "data"),
         State("weight-preference-store", "data"),
         State("language-preference-store", "data"),
+        State("machines-data", "data"),
+        State("active-machine-store", "data"),
     ],
 
 
@@ -6029,7 +6032,7 @@ def update_machine_selected_ip_with_save(ip_values, machines_data, floors_data, 
 
 
 
-def update_section_1_1(n, which, state_data, historical_data, app_state_data, app_mode, production_data, weight_pref, lang):
+def update_section_1_1(n, which, state_data, historical_data, app_state_data, app_mode, production_data, weight_pref, lang, machines_data, active_machine_data):
 
     """Update section 1-1 with capacity information and update shared production data"""
 
@@ -6114,22 +6117,37 @@ def update_section_1_1(n, which, state_data, historical_data, app_state_data, ap
 
     elif mode == "demo":
 
-        # Demo mode: generate realistic random capacity value
-        demo_lbs = random.uniform(47000, 53000)
-        total_capacity = convert_capacity_from_kg(demo_lbs / 2.205, weight_pref)
+        reject_pct = None
+        machine_id = active_machine_data.get("machine_id") if active_machine_data else None
+        if machine_id and machines_data and machines_data.get("machines"):
+            for m in machines_data.get("machines", []):
+                if m.get("id") == machine_id:
+                    prod = (m.get("operational_data") or {}).get("production", {})
+                    cap = prod.get("capacity")
+                    pct = prod.get("rejects_percent")
+                    if pct is not None:
+                        try:
+                            reject_pct = float(pct)
+                        except (TypeError, ValueError):
+                            reject_pct = None
+                    elif cap is not None and prod.get("rejects") is not None and cap > 0:
+                        reject_pct = (prod.get("rejects") / cap) * 100
+                    if cap is not None:
+                        total_capacity = cap
+                    break
 
-        # Rejects come from section 5-2 counter totals
-        reject_count = sum(previous_counter_values) if previous_counter_values else 0
-        rejects = convert_capacity_from_kg(reject_count * 46, weight_pref)
+        if reject_pct is None:
+            demo_lbs = random.uniform(47000, 53000)
+            total_capacity = convert_capacity_from_kg(demo_lbs / 2.205, weight_pref)
+            reject_pct = random.uniform(4.0, 6.0)
 
-        # Calculate accepts as the difference
+        rejects = (reject_pct / 100.0) * total_capacity
         accepts = total_capacity - rejects
 
-        # Update the shared data store
         production_data = {
             "capacity": total_capacity,
             "accepts": accepts,
-            "rejects": rejects
+            "rejects": rejects,
         }
     else:
         # If not live+connected or demo, use existing values from the store
