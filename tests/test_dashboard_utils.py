@@ -188,11 +188,14 @@ def test_layout_functions_return_components(monkeypatch):
     _, _, _, layout, _ = load_modules(monkeypatch)
 
 
-    assert layout.render_new_dashboard() is None
-    assert layout.render_floor_machine_layout_with_customizable_names() is None
-    assert (
-        layout.render_floor_machine_layout_enhanced_with_selection() is None
-    )
+    for func in [
+        layout.render_new_dashboard,
+        layout.render_floor_machine_layout_with_customizable_names,
+        layout.render_floor_machine_layout_enhanced_with_selection,
+    ]:
+        component = func()
+        assert component is not None
+        assert hasattr(component, "children")
 
 
 def test_reconnection_helpers_execute(monkeypatch):
