@@ -29,30 +29,86 @@ except Exception:  # pragma: no cover - provide minimal stubs
     dcc = _Module()  # type: ignore
 
 
+# Height constants used by the dashboard grid layout
+SECTION_HEIGHT = "220px"
+SECTION_HEIGHT2 = "250px"
+
+
 def render_new_dashboard() -> Any:
     """Return the main dashboard layout filled with visible sections."""
 
-    sections = html.Div(
+    return render_main_dashboard()
+
+
+def render_main_dashboard() -> Any:
+    """Return the visible grid of dashboard sections."""
+
+    row1 = html.Div(
         [
-            html.Div(id="section-1-1", children=[dcc.Graph(id="graph-1-1")]),
-            html.Div(id="section-1-2", children=[dcc.Graph(id="graph-1-2")]),
-            html.Div(id="section-2", children=[html.Div("Status Controls")]),
-            html.Div(id="section-3-1", children=[dcc.Graph(id="graph-3-1")]),
-            html.Div(id="section-3-2", children=[dcc.Graph(id="graph-3-2")]),
-            html.Div(id="section-4", children=[dcc.Graph(id="graph-4")]),
-            html.Div(id="section-5-1", children=[dcc.Graph(id="graph-5-1")]),
-            html.Div(id="section-5-2", children=[dcc.Graph(id="graph-5-2")]),
-            html.Div(id="section-6-1", children=[dcc.Graph(id="graph-6-1")]),
-            html.Div(id="section-6-2", children=[dcc.Graph(id="graph-6-2")]),
-            html.Div(id="section-7-1", children=[dcc.Graph(id="graph-7-1")]),
-            html.Div(id="section-7-2", children=[dcc.Graph(id="graph-7-2")]),
-        ]
+            html.Div(
+                [
+                    html.Div(id="section-1-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT}),
+                    html.Div(id="section-1-2", className="p-2", style={"height": SECTION_HEIGHT}),
+                ],
+                className="col-5",
+            ),
+            html.Div(
+                [html.Div(id="section-2", className="p-2", style={"height": "449px"})],
+                className="col-3",
+            ),
+            html.Div(
+                [
+                    html.Div(id="section-3-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT}),
+                    html.Div(id="section-3-2", className="p-2", style={"height": SECTION_HEIGHT}),
+                ],
+                className="col-4",
+            ),
+        ],
+        className="row mb-0 g-0",
     )
 
-    return html.Div([
-        html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
-        sections,
-    ])
+    row2 = html.Div(
+        [
+            html.Div(
+                [html.Div(id="section-4", className="p-2 mb-2", style={"height": "508px"})],
+                className="col-2 pe-2",
+            ),
+            html.Div(
+                [
+                    html.Div(id="section-5-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                    html.Div(id="section-5-2", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                ],
+                className="col-4 pe-2",
+            ),
+            html.Div(
+                [
+                    html.Div(id="section-6-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                    html.Div(id="section-6-2", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                ],
+                className="col-4 pe-2",
+            ),
+            html.Div(
+                [
+                    html.Div(id="section-7-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                    html.Div(id="section-7-2", className="p-2 mb-2 overflow-auto h-100", style={"height": SECTION_HEIGHT2}),
+                ],
+                className="col-2",
+            ),
+        ],
+        className="row g-2",
+    )
+
+    grid = html.Div([row1, row2], className="container-fluid px-2")
+
+    return html.Div(
+        [grid],
+        style={
+            "backgroundColor": "#f0f0f0",
+            "minHeight": "100vh",
+            "display": "flex",
+            "flexDirection": "column",
+        },
+    )
 
 
 def render_floor_machine_layout_with_customizable_names() -> Any:
@@ -93,6 +149,7 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
 
 __all__ = [
     "render_new_dashboard",
+    "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
 ]
