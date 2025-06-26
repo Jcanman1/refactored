@@ -53,3 +53,14 @@ The project is structured as a Python package named `dashboard`:
 
 Use `python run_dashboard.py` to start the application which uses this package.
 
+
+## Legacy Compatibility
+
+This project aims to reproduce the features and appearance of the original dashboard implemented in `EnpresorOPCDataViewBeforeRestructureLegacy.py`.
+Run the legacy script to compare behaviours and layout:
+
+```bash
+python EnpresorOPCDataViewBeforeRestructureLegacy.py
+```
+
+Refer to this file whenever implementing or modifying functionality to ensure the modern code stays aligned with the legacy version.
