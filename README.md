@@ -14,6 +14,9 @@ The application depends on the following Python packages:
 - `numpy`
 - `python-i18n`
 
+Dash Bootstrap Components is used throughout the dashboard layout, so be sure
+it is available in your environment.
+
 Install them with:
 
 ```bash
