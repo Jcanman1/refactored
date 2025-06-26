@@ -15,6 +15,14 @@ from .opc_client import (
 )
 from .startup import start_auto_reconnection, delayed_startup_connect
 from .images import load_saved_image
+from .machine_layout import save_layout, load_layout
+from .data_export import (
+    initialize_data_saving,
+    get_historical_data,
+    append_metrics,
+    append_control_log,
+    get_historical_control_log,
+)
 from .settings import (
     load_display_settings,
     save_display_settings,
@@ -79,4 +87,11 @@ __all__ = [
     "render_new_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
+    "save_layout",
+    "load_layout",
+    "initialize_data_saving",
+    "get_historical_data",
+    "append_metrics",
+    "append_control_log",
+    "get_historical_control_log",
 ]
