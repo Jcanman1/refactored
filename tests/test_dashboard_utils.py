@@ -10,64 +10,36 @@ from types import SimpleNamespace, ModuleType
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
-def load_modules(monkeypatch):
-    """Import dashboard modules with stubbed dependencies."""
-    # Stub for the legacy module expected by the dashboard helpers
-    legacy = ModuleType("EnpresorOPCDataViewBeforeRestructure")
 
-    class DummyTagData:
-        def __init__(self, name):
-            self.name = name
-            self.latest_value = None
 
-        def add_value(self, value):
-            self.latest_value = value
+def load_modules(monkeypatch, src_patches=None):
+    """Import modules with Dash stubs so import succeeds without real Dash.
 
-    legacy.TagData = DummyTagData
-    legacy.app_state = SimpleNamespace(
-        client=None,
-        connected=False,
-        last_update_time=None,
-        thread_stop_flag=False,
-        update_thread=None,
-        tags={},
-    )
-    legacy.opc_update_thread = lambda: None
-    legacy.KNOWN_TAGS = {}
-    legacy.FAST_UPDATE_TAGS = []
-    legacy.start_auto_reconnection = lambda: None
-    legacy.delayed_startup_connect = lambda: None
-    monkeypatch.setitem(sys.modules, "EnpresorOPCDataViewBeforeRestructure", legacy)
+    ``src_patches`` is an optional dict of attribute names to callables that
+    will be applied to ``dashboard.reconnection`` before the
+    dashboard modules are imported.
+    """
+    dash = types.ModuleType("dash")
 
-    # Stub for python-opcua
-    opcua = ModuleType("opcua")
-
-    class DummyNode:
-        def get_children(self):
-            return []
-
-        def get_value(self):
-            return 0
-
-        def get_browse_name(self):
-            return SimpleNamespace(Name="name")
-
-        def get_node_class(self):
-            return ua.NodeClass.Variable
-
-    class DummyClient:
-        def __init__(self, url):
-            self.url = url
-            self.application_uri = ""
-
-        def connect(self):
+    class Dash:
+        def __init__(self, *a, **k):
             pass
 
         def disconnect(self):
             pass
 
-        def get_node(self, _):
-            return DummyNode()
+    src = importlib.import_module("dashboard.reconnection")
+    importlib.reload(src)
+    if src_patches:
+        for name, value in src_patches.items():
+            setattr(src, name, value)
+    settings = importlib.import_module("dashboard.settings")
+    importlib.reload(settings)
+    opc_client = importlib.import_module("dashboard.opc_client")
+    importlib.reload(opc_client)
+    layout = importlib.import_module("dashboard.layout")
+    importlib.reload(layout)
+    return src, settings, opc_client, layout
 
         def get_objects_node(self):
             return DummyNode()
