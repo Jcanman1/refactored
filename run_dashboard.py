@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
         app.layout = render_new_dashboard()
 
-        app.run(debug=False, use_reloader=False, host="0.0.0.0", port=8050)
+        app.run(debug=args.debug, use_reloader=False, host="0.0.0.0", port=8050)
 
     except KeyboardInterrupt:
         print("\nShutting down...")
