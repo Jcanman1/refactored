@@ -192,3 +192,40 @@ def test_layout_functions_return_none(monkeypatch):
     assert (
         layout.render_floor_machine_layout_enhanced_with_selection() is None
     )
+
+
+def test_reconnection_helpers_execute(monkeypatch):
+    calls = {}
+
+    async def fake_connect(url, server_name=None):
+        calls["connect"] = url
+        return True
+
+    def fake_run_async(coro):
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    state_obj = SimpleNamespace(thread_stop_flag=False)
+    patches = {
+        "connect_to_server": fake_connect,
+        "run_async": fake_run_async,
+        "resume_update_thread": lambda: None,
+        "time": types.SimpleNamespace(sleep=lambda x: None),
+        "app_state": state_obj,
+    }
+
+    legacy, _, _, _, startup = load_modules(monkeypatch, src_patches=patches)
+    state_obj.server_url = "opc.tcp://example:4840"
+
+    startup.start_auto_reconnection()
+    state_obj.thread_stop_flag = True
+    thread = getattr(state_obj, "reconnection_thread", None)
+    if thread:
+        thread.join(timeout=0.1)
+
+    startup.delayed_startup_connect()
+
+    assert calls["connect"] == "opc.tcp://example:4840"
