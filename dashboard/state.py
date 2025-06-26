@@ -1,5 +1,6 @@
 """Application state classes used by the dashboard."""
 
+
 from datetime import datetime
 
 try:  # pragma: no cover - optional dependency
@@ -11,9 +12,11 @@ except Exception:  # pragma: no cover - optional dependency
 class AppState:
     """Simple container for OPC UA connection state."""
 
+
     def __init__(self) -> None:
         self.client = None
         self.connected = False
+
         self.last_update_time = None
         self.thread_stop_flag = False
         self.update_thread = None
@@ -38,9 +41,11 @@ class TagData:
         self.values.append(value)
         self.latest_value = value
 
+>
         if len(self.timestamps) > self.max_points:
             self.timestamps = self.timestamps[-self.max_points :]
             self.values = self.values[-self.max_points :]
+
 
     def get_dataframe(self):
         if not self.timestamps:
@@ -53,5 +58,6 @@ class TagData:
 
 
 app_state = AppState()
+
 
 __all__ = ["AppState", "TagData", "app_state"]

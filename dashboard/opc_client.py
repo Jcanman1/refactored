@@ -1,3 +1,4 @@
+
 """OPC UA client utilities reused by the dashboard."""
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from EnpresorOPCDataViewBeforeRestructure import (
     KNOWN_TAGS,
     FAST_UPDATE_TAGS,
 )
+
 
 logger = logging.getLogger(__name__)
 

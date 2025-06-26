@@ -1,3 +1,4 @@
+
 """User settings and preference helpers."""
 
 import json
@@ -207,9 +208,11 @@ def convert_capacity_from_kg(value_kg: float, pref: dict) -> float:
     if unit == "lb":
         return lbs
     if unit == "custom":
+
         per_unit = pref.get("value", 1.0)
         return lbs / per_unit if per_unit else 0
     return lbs
+
 
 
 def convert_capacity_to_lbs(value: float, pref: dict) -> float:
@@ -237,9 +240,11 @@ def convert_capacity_from_lbs(value_lbs: float, pref: dict) -> float:
     if unit == "lb":
         return value_lbs
     if unit == "custom":
+
         per_unit = pref.get("value", 1.0)
         return value_lbs / per_unit if per_unit else 0
     return value_lbs
+
 
 
 def capacity_unit_label(pref: dict, per_hour: bool = True) -> str:
@@ -312,6 +317,7 @@ def save_threshold_settings(settings: dict, path: Path = THRESHOLD_SETTINGS_PATH
     except Exception as e:  # pragma: no cover - just log
         logger.error(f"Error saving threshold settings: {e}")
         return False
+
 
 
 __all__ = [
