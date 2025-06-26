@@ -32,6 +32,18 @@ import json
 import tempfile
 from pathlib import Path
 from collections import defaultdict
+
+from dashboard.opc_client import (
+    run_async,
+    pause_update_thread,
+    resume_update_thread,
+    connect_to_server,
+    disconnect_from_server,
+    discover_tags,
+    debug_discovered_tags,
+    discover_all_tags,
+
+)
 try:
     import generate_report
 except Exception as exc:  # pragma: no cover - optional dependency
@@ -286,43 +298,6 @@ def load_saved_image():
         return {}
 
 
-DEFAULT_EMAIL_SETTINGS = {
-    "smtp_server": "smtp.postmarkapp.com",
-    "smtp_port": 587,
-    "smtp_username": "",
-    "smtp_password": "",
-    "from_address": "jcantu@satake-usa.com",
-}
-
-
-def load_email_settings():
-    """Load SMTP email settings from a JSON file."""
-    try:
-        if EMAIL_SETTINGS_PATH.exists():
-            with open(EMAIL_SETTINGS_PATH, "r") as f:
-                data = json.load(f)
-                return {
-                    "smtp_server": data.get("smtp_server", DEFAULT_EMAIL_SETTINGS["smtp_server"]),
-                    "smtp_port": data.get("smtp_port", DEFAULT_EMAIL_SETTINGS["smtp_port"]),
-                    "smtp_username": data.get("smtp_username", ""),
-                    "smtp_password": data.get("smtp_password", ""),
-                    "from_address": data.get("from_address", DEFAULT_EMAIL_SETTINGS["from_address"]),
-                }
-    except Exception as e:
-        logger.error(f"Error loading email settings: {e}")
-    return DEFAULT_EMAIL_SETTINGS.copy()
-
-
-def save_email_settings(settings):
-    """Save SMTP email settings to ``email_settings.json``."""
-    try:
-        with open(EMAIL_SETTINGS_PATH, "w") as f:
-            json.dump(settings, f, indent=4)
-        logger.info("Email settings saved successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving email settings: {e}")
-        return False
 
 
 email_settings = load_email_settings()
@@ -376,88 +351,6 @@ def send_threshold_email(sensitivity_num, is_high=True):
         return False
 
 # Then define the load function
-def load_threshold_settings():
-    """Load threshold settings from a JSON file"""
-    try:
-        # Log the current working directory to help debug file access issues
-        current_dir = os.getcwd()
-        logger.info(f"Loading threshold settings from '{current_dir}/threshold_settings.json'")
-        
-        if os.path.exists('threshold_settings.json'):
-            with open('threshold_settings.json', 'r') as f:
-                loaded_settings = json.load(f)
-                
-                # Convert string keys back to integers for internal use (except special keys)
-                settings = {}
-                for key, value in loaded_settings.items():
-                    if key in ['email_enabled', 'email_address', 'email_minutes']:
-                        settings[key] = value
-                    else:
-                        settings[int(key)] = value
-                
-                # Log what was loaded
-                logger.info(f"Loaded threshold settings: {settings.keys()}")
-                return settings
-        else:
-            logger.warning("No threshold_settings.json file found")
-            return None
-    except Exception as e:
-        logger.error(f"Error loading threshold settings: {e}")
-        return None
-
-def save_theme_preference(theme):
-    """Save theme preference to display_settings.json"""
-    try:
-        # Load existing settings if file exists
-        settings = {}
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    logger.warning("display_settings.json is corrupted, creating new file")
-                    settings = {}
-        
-        # Update the theme setting
-        settings['app_theme'] = theme
-        
-        # Save back to file
-        with open('display_settings.json', 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Successfully saved theme preference: {theme} to display_settings.json")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error saving theme preference: {e}")
-        return False
-
-def save_threshold_settings(settings):
-    """Save threshold settings to a JSON file"""
-    try:
-        # Log the current working directory to help debug file access issues
-        current_dir = os.getcwd()
-        logger.info(f"Saving threshold settings to '{current_dir}/threshold_settings.json'")
-        
-        # Convert integer keys to strings for JSON serialization
-        json_settings = {}
-        for key, value in settings.items():
-            if isinstance(key, int):
-                json_settings[str(key)] = value
-            else:
-                json_settings[key] = value
-        
-        # Log what we're saving
-        logger.info(f"Saving settings with keys: {json_settings.keys()}")
-        
-        with open('threshold_settings.json', 'w') as f:
-            json.dump(json_settings, f, indent=4)
-            
-        logger.info("Threshold settings saved successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving threshold settings: {e}")
-        
-        return False
 
 
 threshold_settings = DEFAULT_THRESHOLD_SETTINGS.copy()
@@ -505,10 +398,23 @@ except Exception as e:  # pragma: no cover - optional dependency
     logger.warning(f"Plotly modules not available: {e}")
     go = make_subplots = px = pd = np = None
 
+from dashboard.state import AppState, TagData, app_state
+
 
 # Global display settings - initialize with all traces visible
 display_settings = {i: True for i in range(1, 13)}  # Default: all traces visible
 active_machine_id = None  # This will track which machine's data to display on main dashboard
+
+# Try to load display settings at startup
+try:
+    loaded_display_settings = load_display_settings()
+    if loaded_display_settings is not None:
+        display_settings.update(loaded_display_settings)
+        logger.info("Loaded display settings from file")
+    else:
+        logger.info("No display settings file found, using defaults")
+except Exception as e:
+    logger.error(f"Error updating display settings: {e}")
 
 # Current application mode ("demo", "live" or "historical").  This is updated by
 # a Dash callback whenever the ``app-mode`` store changes so that background
@@ -652,111 +558,6 @@ prev_active_states = defaultdict(
 
 
 # Function to load display settings
-def load_display_settings():
-    """Load display settings from a JSON file"""
-    try:
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                loaded_settings = json.load(f)
-                
-                # Convert numeric keys back to integers and keep others as-is
-                settings = {}
-                for key, value in loaded_settings.items():
-                    if str(key).isdigit():
-                        settings[int(key)] = value
-                    else:
-                        settings[key] = value
-                
-                # Return the loaded settings
-                return settings
-        return None
-    except Exception as e:
-        logger.error(f"Error loading display settings: {e}")
-        return None
-
-# Function to save display settings
-def save_display_settings(settings):
-    """Save display settings to a JSON file"""
-    try:
-        # Convert all keys to strings for JSON serialization
-        json_settings = {}
-        for key, value in settings.items():
-            json_settings[str(key)] = value
-            
-        with open('display_settings.json', 'w') as f:
-            json.dump(json_settings, f, indent=4)
-        return True
-    except Exception as e:
-        logger.error(f"Error saving display settings: {e}")
-        return False
-
-# Try to load display settings at startup
-try:
-    loaded_display_settings = load_display_settings()
-    if loaded_display_settings is not None:
-        display_settings.update(loaded_display_settings)
-        logger.info("Loaded display settings from file")
-    else:
-        logger.info("No display settings file found, using defaults")
-except Exception as e:
-    logger.error(f"Error updating display settings: {e}")
-
-
-
-# Function to save IP addresses to a file
-def save_ip_addresses(addresses):
-    """Save IP addresses to a JSON file"""
-    try:
-        with open('ip_addresses.json', 'w') as f:
-            json.dump(addresses, f, indent=4)
-        return True
-    except Exception as e:
-        logger.error(f"Error saving IP addresses: {e}")
-        return False
-
-# Function to load IP addresses from a file
-def load_ip_addresses():
-    """Load IP addresses from a JSON file"""
-    try:
-        default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-        
-        if os.path.exists('ip_addresses.json'):
-            with open('ip_addresses.json', 'r') as f:
-                addresses = json.load(f)
-                
-            # Validate data structure
-            if not isinstance(addresses, dict) or "addresses" not in addresses:
-                logger.warning("Invalid format in ip_addresses.json, using default")
-                return default_data
-                
-            # Ensure addresses is a list
-            if not isinstance(addresses["addresses"], list):
-                logger.warning("'addresses' is not a list in ip_addresses.json, using default")
-                return default_data
-                
-            # Validate each address entry has ip and label
-            valid_addresses = []
-            for item in addresses["addresses"]:
-                if isinstance(item, dict) and "ip" in item and "label" in item:
-                    valid_addresses.append(item)
-                else:
-                    logger.warning(f"Invalid address entry: {item}")
-            
-            if valid_addresses:
-                addresses["addresses"] = valid_addresses
-                logger.info(f"Loaded IP addresses: {addresses}")
-                return addresses
-            else:
-                logger.warning("No valid addresses found, using default")
-                return default_data
-        else:
-            logger.info(f"No IP addresses file found, using default: {default_data}")
-            return default_data
-    except Exception as e:
-        logger.error(f"Error loading IP addresses: {e}")
-        default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-        logger.info(f"Error loading IP addresses, using default: {default_data}")
-        return default_data
 
 def generate_csv_string(tags_data):
     """Return CSV data for the provided tags as a string."""
@@ -833,47 +634,7 @@ base64_image_string8 = """
 iVBORw0KGgoAAAANSUhEUgAAACkAAAAQCAIAAAAEd8HEAAAD30lEQVQ4EZXBUY5d1REF0L2r6pz7ug2EELfbdroBRcofc8lEGA4TYSpRfkgUEAIZ28IYBZv33j1VtYMt8WERK8lalIT/zV/+9NnnX34K4OLO+8SS5GDMCaMLnF4tVb/roy8PXYulNlN3wBmX337zd7yJkvCm6w8/WcfvTdmAC2kwyc1ijKzKrspUywC4Ba2NWnnYtjMVTTqcYU4asztVlp006w74exfvffHVF3iNkvDaH64+MhwbIqFXGg0Pj+FL4l4ysCXzVnUXUnAzI2mvEBXwBZtT3Y2yVgmECaABUEqojp5Pv38EgPeuPznmd35K34YNszCQQef083nvc04j56iCGYRiGTeejzu6C/I2C+ewznKzloxwmW1eApaWlU7pYWoVugXLHvPy8eNv+f7v74Zg0zlMJMjNQ+aQyG42mhTbNIWj1v7zPmnLqS6tHm4cg7RT7jPZQYcg+sVEtUekOvcdQleDGKCGdbblgXev7go0Ys4pdwzraqhG0jfe8fl8FP+1VteErc3zuFP9i+pCycxI27bt1IurL3zku9E/rTlcTtA38KVX/nRye6VaZhRby3j/5obqxfZCkWEYY5TLEzK42TJydTn6tCBtM86OPO7a040FmCyGgbCkHcJlGrY6dUo4IRTkWRlmezdBQkAXeP/2RmoD07qzpwyHyFwuMmxfOYWeQaEkVG4Wp6AdV09ao7JAbDZryAtwM0MmKDEckgWPp7Pt3Q6VCKOjS9Albx/exNX24/MXhyPrTmgV3bJWJGIbGsbz4mHk3hO2HLUnJDe2Q6tNjeEbvNgtdMvp5bBsCxfow6sLS9Wl7k7B2VXAQ0oCcHX7ANmMUKXDNL3XDsFgNkLSoGG6G0vozFGKy3ixV+8ZkJut+kV3453Y5juHfSpf7tWN7sHIIBtL3aczQOB3zx7/g5Lwq/u3NwwoW2brfCIIgRCM0dzuXPT0AStHn89dAlndm8wP8eJ8zJ93GlmUE8CkcU437g7sidLqCsbTR4/wGiXhTVcPrmMwaNkooJXRYQMNmhBbdPV5ldY+fPSwKauBXMtSMKtuA4xWEBNxMVuy1jLk+YMfvvsrfkVJ+E/u3T5EN4drlQl2MbS3hztREB2ranTkwflyHYLnYK2qLG+JzuBa6SUafYzy7clX/8SbKAlvd3XzYPrQ5uoOWQ/Y3nJ2S11I+MXMzC1x9kLCjCVk7p1lkpGKcL968s3f8BuUhP/m+uMPWS2z6oVqh2vSSxwOUaKs65whyK1VpfbCrkbqx2fP8BaUhP/fvQd/vJ4Tf/7g6aPnenFSozvXylnsS89jBQxx+cOTr/F2/wZgl+BtvBxrqQAAAABJRU5ErkJggg==
 """
 
-# Global state for the application
-class AppState:
-    def __init__(self):
-        self.client = None
-        self.connected = False
-        self.last_update_time = None
-        self.thread_stop_flag = False
-        self.update_thread = None
-        self.tags = {}  # Dictionary to store tag data
-        
-        
-app_state = AppState()
-
-# TagData class to store tag history
-class TagData:
-    def __init__(self, name, max_points=1000):
-        self.name = name
-        self.max_points = max_points
-        self.timestamps = []
-        self.values = []
-        self.latest_value = None
-        
-    def add_value(self, value, timestamp=None):
-        """Add a new value to the tag history"""
-        if timestamp is None:
-            timestamp = datetime.now()
-        
-        self.timestamps.append(timestamp)
-        self.values.append(value)
-        self.latest_value = value
-        
-        # Keep only the latest max_points
-        if len(self.timestamps) > self.max_points:
-            self.timestamps = self.timestamps[-self.max_points:]
-            self.values = self.values[-self.max_points:]
-            
-    def get_dataframe(self):
-        """Return the tag history as a pandas DataFrame"""
-        if not self.timestamps:
-            return pd.DataFrame({'timestamp': [], 'value': []})
-        return pd.DataFrame({'timestamp': self.timestamps, 'value': self.values})
+# Global state for the application is provided by :mod:`dashboard.state`.
 
 data_saver = initialize_data_saving()
 
@@ -978,65 +739,6 @@ def opc_update_thread():
             
         time.sleep(1)
 
-# Run async function in the event loop
-def run_async(coro):
-    loop = get_event_loop()
-    return loop.run_until_complete(coro)
-
-
-def pause_update_thread():
-    """Stop the background update thread if running."""
-    if app_state.update_thread and app_state.update_thread.is_alive():
-        app_state.thread_stop_flag = True
-        app_state.update_thread.join(timeout=5)
-
-
-def resume_update_thread():
-    """Restart the background update thread if it is not running."""
-    if app_state.update_thread is None or not app_state.update_thread.is_alive():
-        app_state.thread_stop_flag = False
-        app_state.update_thread = Thread(target=opc_update_thread)
-        app_state.update_thread.daemon = True
-        app_state.update_thread.start()
-
-# Connect to OPC UA server
-async def connect_to_server(server_url, server_name=None):
-    """Connect to the OPC UA server"""
-    try:
-        logger.info(f"Connecting to OPC UA server at {server_url}...")
-        
-        # Create client
-        app_state.client = Client(server_url)
-        
-        # Set application name
-        if server_name:
-            app_state.client.application_uri = f"urn:{server_name}"
-            logger.info(f"Setting application URI to: {app_state.client.application_uri}")
-        
-        # Connect to server
-        app_state.client.connect()
-        logger.info("Connected to server")
-        
-        # Discover tags
-        await discover_tags()
-        debug_discovered_tags()  # Add this line
-
-        # Start background thread
-        if app_state.update_thread is None or not app_state.update_thread.is_alive():
-            app_state.thread_stop_flag = False
-            app_state.update_thread = Thread(target=opc_update_thread)
-            app_state.update_thread.daemon = True
-            app_state.update_thread.start()
-            logger.info("Started background update thread")
-            
-        app_state.connected = True
-        app_state.last_update_time = datetime.now()
-        return True
-        
-    except Exception as e:
-        logger.error(f"Connection error: {e}")
-        app_state.connected = False
-        return False
 
 def create_threshold_settings_form():
     """Create a form for threshold settings"""
@@ -1163,384 +865,7 @@ try:
 except Exception as e:
     logger.error(f"Error loading threshold settings: {e}")
 
-# Discover available tags
-async def discover_tags():
-    """Discover available tags on the server"""
-    if not app_state.client:
-        return False
-        
-    try:
-        logger.info("Discovering tags...")
-        root = app_state.client.get_root_node()
-        objects = app_state.client.get_objects_node()
-        
-        # Clear existing tags
-        app_state.tags = {}
-        
-        # First, try to connect to all known tags explicitly
-        logger.info("Attempting to connect to known tags...")
-        for tag_name, node_id in KNOWN_TAGS.items():
-            if tag_name not in FAST_UPDATE_TAGS:
-                continue
-            try:
-                node = app_state.client.get_node(node_id)
-                value = node.get_value()
-                
-                logger.info(f"Successfully connected to known tag: {tag_name} = {value}")
-                
-                # Add to tags
-                tag_data = TagData(tag_name)
-                tag_data.add_value(value)
-                app_state.tags[tag_name] = {
-                    'node': node,
-                    'data': tag_data
-                }
-            except Exception as e:
-                logger.warning(f"Could not connect to known tag {tag_name} ({node_id}): {e}")
-        
-        # Then do the existing discovery process for any additional tags
-        logger.info("Performing additional tag discovery...")
-        
-        # Function to recursively browse nodes
-        async def browse_nodes(node, level=0, max_level=3):
-            if level > max_level:
-                return
-                
-            try:
-                children = node.get_children()
-                for child in children:
-                    try:
-                        name = child.get_browse_name().Name
-                        node_class = child.get_node_class()
-                        
-                        # If it's a variable, add it to our tags (if not already added)
-                        if node_class == ua.NodeClass.Variable:
-                            try:
-                                # Skip if name already exists or is not in FAST_UPDATE_TAGS
-                                if name in app_state.tags or name not in FAST_UPDATE_TAGS:
-                                    continue
-                                    
-                                value = child.get_value()
-                                logger.debug(f"Found additional tag: {name} = {value}")
-                                
-                                tag_data = TagData(name)
-                                tag_data.add_value(value)
-                                app_state.tags[name] = {
-                                    'node': child,
-                                    'data': tag_data
-                                }
-                            except Exception:
-                                pass
-                        
-                        # Continue browsing deeper
-                        await browse_nodes(child, level + 1, max_level)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        
-        # Start browsing from objects node with limited depth
-        await browse_nodes(objects, 0, 2)
-        
-        logger.info(f"Total tags discovered: {len(app_state.tags)}")
-        
-        # Log specifically if our test weight tags were found
-        if "Settings.ColorSort.TestWeightValue" in app_state.tags:
-            weight_value = app_state.tags["Settings.ColorSort.TestWeightValue"]["data"].latest_value
-            logger.info(f"✓ TestWeightValue tag found with value: {weight_value}")
-        else:
-            logger.warning("✗ TestWeightValue tag NOT found")
-            
-        if "Settings.ColorSort.TestWeightCount" in app_state.tags:
-            count_value = app_state.tags["Settings.ColorSort.TestWeightCount"]["data"].latest_value
-            logger.info(f"✓ TestWeightCount tag found with value: {count_value}")
-        else:
-            logger.warning("✗ TestWeightCount tag NOT found")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error discovering tags: {e}")
-        return False
 
-# Disconnect from OPC UA server
-async def disconnect_from_server():
-    try:
-        logger.info("Disconnecting from server...")
-        
-        # Stop background thread
-        if app_state.update_thread and app_state.update_thread.is_alive():
-            app_state.thread_stop_flag = True
-            app_state.update_thread.join(timeout=5)
-            
-        # Disconnect client
-        if app_state.client:
-            app_state.client.disconnect()
-            
-        app_state.connected = False
-        logger.info("Disconnected from server")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Disconnection error: {e}")
-        return False
-
-def debug_discovered_tags():
-    """Write discovered tags to a file to see what's actually available"""
-    import os
-    
-    # Use absolute path so we know exactly where it goes
-    file_path = os.path.abspath('discovered_tags.txt')
-    logger.info(f"Writing {len(app_state.tags)} discovered tags to: {file_path}")
-    
-    try:
-        with open(file_path, 'w') as f:
-            f.write(f"Total tags discovered: {len(app_state.tags)}\n\n")
-            
-            # Group tags by category to make it easier to read
-            categories = {}
-            
-            for tag_name, tag_info in app_state.tags.items():
-                try:
-                    value = tag_info['data'].latest_value
-                    node_id = str(tag_info['node'].nodeid)
-                    
-                    # Try to categorize by the first part of the name
-                    category = tag_name.split('.')[0] if '.' in tag_name else 'Other'
-                    if category not in categories:
-                        categories[category] = []
-                    
-                    categories[category].append({
-                        'name': tag_name,
-                        'node_id': node_id,
-                        'value': value
-                    })
-                    
-                except Exception as e:
-                    category = 'Errors'
-                    if category not in categories:
-                        categories[category] = []
-                    categories[category].append({
-                        'name': tag_name,
-                        'node_id': 'unknown',
-                        'value': f'Error: {e}'
-                    })
-            
-            # Write organized output
-            for category, tags in sorted(categories.items()):
-                f.write(f"\n=== {category.upper()} TAGS ===\n")
-                for tag in tags[:50]:  # Limit to first 50 per category
-                    f.write(f"Name: {tag['name']}\n")
-                    f.write(f"NodeID: {tag['node_id']}\n") 
-                    f.write(f"Value: {tag['value']}\n\n")
-                
-                if len(tags) > 50:
-                    f.write(f"... and {len(tags) - 50} more tags in this category\n\n")
-        
-        logger.info(f"SUCCESS: Tag discovery results written to: {file_path}")
-        
-    except Exception as e:
-        logger.error(f"ERROR writing file: {e}")
-
-
-async def discover_all_tags(client):
-    """Return a dict of all tags available from the OPC server."""
-    tags = {}
-
-    try:
-        objects = client.get_objects_node()
-
-        async def browse_nodes(node, level=0, max_level=3):
-            if level > max_level:
-                return
-            try:
-                children = node.get_children()
-                for child in children:
-                    try:
-                        name = child.get_browse_name().Name
-                        node_class = child.get_node_class()
-                        if node_class == ua.NodeClass.Variable:
-                            if name not in tags:
-                                try:
-                                    value = child.get_value()
-                                    tag_data = TagData(name)
-                                    tag_data.add_value(value)
-                                    tags[name] = {"node": child, "data": tag_data}
-                                except Exception:
-                                    pass
-                        await browse_nodes(child, level + 1, max_level)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-        await browse_nodes(objects, 0, 2)
-        logger.info(f"Full tag discovery found {len(tags)} tags")
-    except Exception as e:
-        logger.error(f"Error during full tag discovery: {e}")
-
-    return tags
-
-def load_theme_preference():
-    """Load theme preference from display_settings.json"""
-    try:
-        # Check if the settings file exists
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                try:
-                    settings = json.load(f)
-                    theme = settings.get('app_theme', 'light')
-                    logger.info(f"Loaded theme from file: {theme}")
-                    return theme
-                except json.JSONDecodeError:
-                    logger.warning("display_settings.json is corrupted, using default theme")
-                    return 'light'
-        else:
-            logger.info("display_settings.json doesn't exist, using default theme")
-            return 'light'  # Default theme if file doesn't exist
-            
-    except Exception as e:
-        logger.error(f"Error loading theme preference: {e}")
-        return 'light'  # Default to light theme in case of error
-
-
-DEFAULT_WEIGHT_PREF = {"unit": "lb", "label": "lbs", "value": 1.0}
-
-def load_weight_preference():
-    """Load capacity unit preference from display_settings.json"""
-    try:
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                settings = json.load(f)
-                return {
-                    "unit": settings.get('capacity_unit', 'lb'),
-                    "label": settings.get('capacity_custom_label', ''),
-                    "value": settings.get('capacity_custom_value', 1.0),
-                }
-    except Exception as e:
-        logger.error(f"Error loading capacity unit preference: {e}")
-    return DEFAULT_WEIGHT_PREF.copy()
-
-
-def save_weight_preference(unit, label="", value=1.0):
-    """Save capacity unit preference to display_settings.json"""
-    try:
-        settings = {}
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    settings = {}
-
-        settings['capacity_unit'] = unit
-        settings['capacity_custom_label'] = label
-        settings['capacity_custom_value'] = value
-
-        with open(DISPLAY_SETTINGS_PATH, 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Saved capacity unit preference: {unit}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving capacity unit preference: {e}")
-        return False
-
-
-DEFAULT_LANGUAGE = "en"
-
-def load_language_preference():
-    """Load UI language preference from ``display_settings.json``"""
-    try:
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                settings = json.load(f)
-                return settings.get('language', DEFAULT_LANGUAGE)
-    except Exception as e:
-        logger.error(f"Error loading language preference: {e}")
-    return DEFAULT_LANGUAGE
-
-
-def save_language_preference(language):
-    """Save UI language preference to ``display_settings.json``"""
-    try:
-        settings = {}
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    settings = {}
-
-        settings['language'] = language
-
-        with open(DISPLAY_SETTINGS_PATH, 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Saved language preference: {language}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving language preference: {e}")
-        return False
-
-
-def convert_capacity_from_kg(value_kg, pref):
-    """Convert capacity from kilograms based on selected unit preference"""
-    if value_kg is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value_kg
-    lbs = value_kg * 2.205
-    if unit == 'lb':
-        return lbs
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        if per_unit:
-            return lbs / per_unit
-        return 0
-    return lbs
-
-
-def convert_capacity_to_lbs(value, pref):
-    """Convert a capacity value based on selected unit preference to pounds."""
-    if value is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value * 2.205
-    if unit == 'lb':
-        return value
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        return value * per_unit
-    return value
-
-
-def convert_capacity_from_lbs(value_lbs, pref):
-    """Convert a capacity value in pounds to the preferred display unit."""
-    if value_lbs is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value_lbs / 2.205
-    if unit == 'lb':
-        return value_lbs
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        if per_unit:
-            return value_lbs / per_unit
-        return 0
-    return value_lbs
-
-
-def capacity_unit_label(pref, per_hour=True):
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        label = 'kg'
-    elif unit == 'lb':
-        label = 'lbs'
-    else:
-        label = pref.get('label', 'unit')
-    return f"{label}/hr" if per_hour else label
 
 
 
