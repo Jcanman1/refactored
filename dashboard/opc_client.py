@@ -18,9 +18,39 @@ except Exception:  # pragma: no cover - optional dependency
 from .state import app_state, TagData
 
 # Basic stubs and placeholders
-def opc_update_thread() -> None:  # pragma: no cover - placeholder
-    """Background polling loop stub."""
-    pass
+def opc_update_thread() -> None:
+    """Background polling loop that keeps tag data up to date."""
+
+    logger.info("OPC update thread started")
+
+    while not app_state.thread_stop_flag:
+        try:
+            if not app_state.client:
+                time.sleep(1)
+                continue
+
+            for tag_name, info in list(app_state.tags.items()):
+                if FAST_UPDATE_TAGS and tag_name not in FAST_UPDATE_TAGS:
+                    continue
+
+                node = info.get("node")
+                data = info.get("data")
+                if not node or not data:
+                    continue
+
+                try:
+                    value = node.get_value()
+                    data.add_value(value)
+                except Exception as exc:  # pragma: no cover - network dependent
+                    logger.debug("Error reading tag %s: %s", tag_name, exc)
+
+            app_state.last_update_time = datetime.now()
+        except Exception as exc:  # pragma: no cover - unexpected errors
+            logger.error("Error in OPC update thread: %s", exc)
+
+        time.sleep(1)
+
+    logger.info("OPC update thread stopped")
 
 # Known tags and fast update tags are empty by default
 KNOWN_TAGS: Dict[str, str] = {}
