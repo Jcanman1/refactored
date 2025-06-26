@@ -28,6 +28,21 @@ except Exception:  # pragma: no cover - provide minimal stubs
     html = _Module()  # type: ignore
     dcc = _Module()  # type: ignore
 
+# ``dash-bootstrap-components`` is also optional for the tests. When missing,
+# bootstrap components fall back to simple ``html.Div`` containers so the
+# layout functions can still be imported.
+try:  # pragma: no cover - optional dependency
+    import dash_bootstrap_components as dbc  # type: ignore
+except Exception:  # pragma: no cover - provide minimal stubs
+    class _BootstrapModule:  # pragma: no cover - container returning ``html.Div``
+        def __getattr__(self, name: str):
+            def creator(*children: Any, **props: Any):
+                return html.Div(*children, **props)
+
+            return creator
+
+    dbc = _BootstrapModule()  # type: ignore
+
 
 # Height constants used by the dashboard grid layout
 SECTION_HEIGHT = "220px"
@@ -54,59 +69,116 @@ def render_new_dashboard() -> Any:
 def render_main_dashboard() -> Any:
     """Return the visible grid of dashboard sections."""
 
-    row1 = html.Div(
+    row1 = dbc.Row(
         [
-            html.Div(
+            dbc.Col(
                 [
-                    html.Div(id="section-1-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT}),
-                    html.Div(id="section-1-2", className="p-2", style={"height": SECTION_HEIGHT}),
+                    dbc.Card(
+                        dbc.CardBody(id="section-1-1", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT},
+                    ),
+                    dbc.Card(
+                        dbc.CardBody(id="section-1-2", className="p-2"),
+                        className="mb-0",
+                        style={"height": SECTION_HEIGHT},
+                    ),
                 ],
-                className="col-5",
+                width=5,
             ),
-            html.Div(
-                [html.Div(id="section-2", className="p-2", style={"height": "449px"})],
-                className="col-3",
-            ),
-            html.Div(
+            dbc.Col(
                 [
-                    html.Div(id="section-3-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT}),
-                    html.Div(id="section-3-2", className="p-2", style={"height": SECTION_HEIGHT}),
+                    dbc.Card(
+                        dbc.CardBody(id="section-2", className="p-2"),
+                        style={"height": "449px"},
+                    )
                 ],
-                className="col-4",
+                width=3,
+            ),
+            dbc.Col(
+                [
+                    dbc.Card(
+                        dbc.CardBody(id="section-3-1", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT},
+                    ),
+                    dbc.Card(
+                        dbc.CardBody(id="section-3-2", className="p-2"),
+                        className="mb-0",
+                        style={"height": SECTION_HEIGHT},
+                    ),
+                ],
+                width=4,
             ),
         ],
-        className="row mb-0 g-0",
+        className="mb-0 g-0",
     )
 
-    row2 = html.Div(
+    row2 = dbc.Row(
         [
-            html.Div(
-                [html.Div(id="section-4", className="p-2 mb-2", style={"height": "508px"})],
-                className="col-2 pe-2",
-            ),
-            html.Div(
+            dbc.Col(
                 [
-                    html.Div(id="section-5-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
-                    html.Div(id="section-5-2", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                    dbc.Card(
+                        dbc.CardBody(id="section-4", className="p-2"),
+                        className="mb-2",
+                        style={"height": "508px"},
+                    ),
                 ],
-                className="col-4 pe-2",
+                width=2,
+                className="pe-2",
             ),
-            html.Div(
+            dbc.Col(
                 [
-                    html.Div(id="section-6-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
-                    html.Div(id="section-6-2", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
+                    dbc.Card(
+                        dbc.CardBody(id="section-5-1", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
+                    dbc.Card(
+                        dbc.CardBody(id="section-5-2", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
                 ],
-                className="col-4 pe-2",
+                width=4,
+                className="pe-2",
             ),
-            html.Div(
+            dbc.Col(
                 [
-                    html.Div(id="section-7-1", className="p-2 mb-2", style={"height": SECTION_HEIGHT2}),
-                    html.Div(id="section-7-2", className="p-2 mb-2 overflow-auto h-100", style={"height": SECTION_HEIGHT2}),
+                    dbc.Card(
+                        dbc.CardBody(id="section-6-1", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
+                    dbc.Card(
+                        dbc.CardBody(id="section-6-2", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
                 ],
-                className="col-2",
+                width=4,
+                className="pe-2",
+            ),
+            dbc.Col(
+                [
+                    dbc.Card(
+                        dbc.CardBody(id="section-7-1", className="p-2"),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
+                    dbc.Card(
+                        dbc.CardBody(
+                            id="section-7-2",
+                            className="p-2 overflow-auto h-100",
+                        ),
+                        className="mb-2",
+                        style={"height": SECTION_HEIGHT2},
+                    ),
+                ],
+                width=2,
             ),
         ],
-        className="row g-2",
+        className="g-2",
     )
 
     grid = html.Div([row1, row2], className="container-fluid px-2")
