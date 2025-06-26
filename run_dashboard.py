@@ -22,6 +22,8 @@ from dashboard import (
     start_auto_reconnection,
     delayed_startup_connect,
     load_saved_image,
+    load_layout,
+    initialize_data_saving,
 )
 from dashboard.layout import render_new_dashboard
 from dashboard.state import app_state
@@ -88,6 +90,16 @@ if __name__ == "__main__":
         saved_image = load_saved_image()
         if saved_image:
             logger.info("Loaded saved custom image")
+
+        floors_data, machines_data = load_layout()
+        if floors_data or machines_data:
+            logger.info("Loaded saved floor/machine layout")
+
+        machine_ids = None
+        if machines_data and isinstance(machines_data, dict):
+            machine_ids = [m.get("id") for m in machines_data.get("machines", [])]
+
+        initialize_data_saving(machine_ids=machine_ids)
 
         import socket
 
