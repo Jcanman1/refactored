@@ -16,6 +16,7 @@ except ImportError:  # pragma: no cover - Python 3.12+
         raise ValueError(f"invalid truth value {val!r}")
 
 from dashboard import app
+from dash import html
 from dashboard.opc_client import run_async, disconnect_from_server
 from dashboard import (
     start_auto_reconnection,
@@ -117,6 +118,8 @@ if __name__ == "__main__":
                 webbrowser.open_new("http://127.0.0.1:8050/")
 
             threading.Thread(target=open_browser).start()
+
+        app.layout = html.Div("Dashboard running...")
 
         app.run(debug=False, use_reloader=False, host="0.0.0.0", port=8050)
 
