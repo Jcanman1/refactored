@@ -36,8 +36,19 @@ SECTION_HEIGHT2 = "250px"
 
 def render_new_dashboard() -> Any:
     """Return the main dashboard layout filled with visible sections."""
+    grid = render_main_dashboard()
 
-    return render_main_dashboard()
+    return html.Div(
+        [
+            dcc.Interval(
+                id="status-update-interval",
+                interval=1000,
+                n_intervals=0,
+            ),
+            dcc.Store(id="production-data-store"),
+            grid,
+        ]
+    )
 
 
 def render_main_dashboard() -> Any:
