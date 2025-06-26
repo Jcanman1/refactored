@@ -505,6 +505,8 @@ except Exception as e:  # pragma: no cover - optional dependency
     logger.warning(f"Plotly modules not available: {e}")
     go = make_subplots = px = pd = np = None
 
+from dashboard.state import AppState, TagData, app_state
+
 
 # Global display settings - initialize with all traces visible
 display_settings = {i: True for i in range(1, 13)}  # Default: all traces visible
@@ -833,47 +835,7 @@ base64_image_string8 = """
 iVBORw0KGgoAAAANSUhEUgAAACkAAAAQCAIAAAAEd8HEAAAD30lEQVQ4EZXBUY5d1REF0L2r6pz7ug2EELfbdroBRcofc8lEGA4TYSpRfkgUEAIZ28IYBZv33j1VtYMt8WERK8lalIT/zV/+9NnnX34K4OLO+8SS5GDMCaMLnF4tVb/roy8PXYulNlN3wBmX337zd7yJkvCm6w8/WcfvTdmAC2kwyc1ijKzKrspUywC4Ba2NWnnYtjMVTTqcYU4asztVlp006w74exfvffHVF3iNkvDaH64+MhwbIqFXGg0Pj+FL4l4ysCXzVnUXUnAzI2mvEBXwBZtT3Y2yVgmECaABUEqojp5Pv38EgPeuPznmd35K34YNszCQQef083nvc04j56iCGYRiGTeejzu6C/I2C+ewznKzloxwmW1eApaWlU7pYWoVugXLHvPy8eNv+f7v74Zg0zlMJMjNQ+aQyG42mhTbNIWj1v7zPmnLqS6tHm4cg7RT7jPZQYcg+sVEtUekOvcdQleDGKCGdbblgXev7go0Ys4pdwzraqhG0jfe8fl8FP+1VteErc3zuFP9i+pCycxI27bt1IurL3zku9E/rTlcTtA38KVX/nRye6VaZhRby3j/5obqxfZCkWEYY5TLEzK42TJydTn6tCBtM86OPO7a040FmCyGgbCkHcJlGrY6dUo4IRTkWRlmezdBQkAXeP/2RmoD07qzpwyHyFwuMmxfOYWeQaEkVG4Wp6AdV09ao7JAbDZryAtwM0MmKDEckgWPp7Pt3Q6VCKOjS9Albx/exNX24/MXhyPrTmgV3bJWJGIbGsbz4mHk3hO2HLUnJDe2Q6tNjeEbvNgtdMvp5bBsCxfow6sLS9Wl7k7B2VXAQ0oCcHX7ANmMUKXDNL3XDsFgNkLSoGG6G0vozFGKy3ixV+8ZkJut+kV3453Y5juHfSpf7tWN7sHIIBtL3aczQOB3zx7/g5Lwq/u3NwwoW2brfCIIgRCM0dzuXPT0AStHn89dAlndm8wP8eJ8zJ93GlmUE8CkcU437g7sidLqCsbTR4/wGiXhTVcPrmMwaNkooJXRYQMNmhBbdPV5ldY+fPSwKauBXMtSMKtuA4xWEBNxMVuy1jLk+YMfvvsrfkVJ+E/u3T5EN4drlQl2MbS3hztREB2ranTkwflyHYLnYK2qLG+JzuBa6SUafYzy7clX/8SbKAlvd3XzYPrQ5uoOWQ/Y3nJ2S11I+MXMzC1x9kLCjCVk7p1lkpGKcL968s3f8BuUhP/m+uMPWS2z6oVqh2vSSxwOUaKs65whyK1VpfbCrkbqx2fP8BaUhP/fvQd/vJ4Tf/7g6aPnenFSozvXylnsS89jBQxx+cOTr/F2/wZgl+BtvBxrqQAAAABJRU5ErkJggg==
 """
 
-# Global state for the application
-class AppState:
-    def __init__(self):
-        self.client = None
-        self.connected = False
-        self.last_update_time = None
-        self.thread_stop_flag = False
-        self.update_thread = None
-        self.tags = {}  # Dictionary to store tag data
-        
-        
-app_state = AppState()
-
-# TagData class to store tag history
-class TagData:
-    def __init__(self, name, max_points=1000):
-        self.name = name
-        self.max_points = max_points
-        self.timestamps = []
-        self.values = []
-        self.latest_value = None
-        
-    def add_value(self, value, timestamp=None):
-        """Add a new value to the tag history"""
-        if timestamp is None:
-            timestamp = datetime.now()
-        
-        self.timestamps.append(timestamp)
-        self.values.append(value)
-        self.latest_value = value
-        
-        # Keep only the latest max_points
-        if len(self.timestamps) > self.max_points:
-            self.timestamps = self.timestamps[-self.max_points:]
-            self.values = self.values[-self.max_points:]
-            
-    def get_dataframe(self):
-        """Return the tag history as a pandas DataFrame"""
-        if not self.timestamps:
-            return pd.DataFrame({'timestamp': [], 'value': []})
-        return pd.DataFrame({'timestamp': self.timestamps, 'value': self.values})
+# Global state for the application is provided by :mod:`dashboard.state`.
 
 data_saver = initialize_data_saving()
 

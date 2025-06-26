@@ -21,8 +21,8 @@ from EnpresorOPCDataViewBeforeRestructure import (
     start_auto_reconnection,
     delayed_startup_connect,
     load_saved_image,
-    app_state,
 )
+from dashboard.state import app_state
 
 logger = logging.getLogger(__name__)
 
