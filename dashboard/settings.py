@@ -1,103 +1,18 @@
-"""User settings and preference helpers (simplified)."""
 
-from __future__ import annotations
+"""User settings and preference helpers."""
 
 import json
 import logging
+import os
 from pathlib import Path
-from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-DISPLAY_SETTINGS_PATH = Path(__file__).resolve().parent.parent / "display_settings.json"
-EMAIL_SETTINGS_PATH = Path(__file__).resolve().parent.parent / "email_settings.json"
-
-
-# ---------------------------------------------------------------------------
-# Display settings helpers
-# ---------------------------------------------------------------------------
-
-def load_display_settings() -> Dict[str, Any] | None:
-    if DISPLAY_SETTINGS_PATH.exists():
-        try:
-            with open(DISPLAY_SETTINGS_PATH, "r") as f:
-                return json.load(f)
-        except Exception as exc:  # pragma: no cover
-            logger.error("Failed to load display settings: %s", exc)
-    return None
-
-
-def save_display_settings(settings: Dict[str, Any]) -> bool:
-    try:
-        with open(DISPLAY_SETTINGS_PATH, "w") as f:
-            json.dump(settings, f, indent=4)
-        return True
-    except Exception as exc:  # pragma: no cover
-        logger.error("Failed to save display settings: %s", exc)
-        return False
-
-
-def load_ip_addresses() -> Dict[str, Any]:
-    path = Path("ip_addresses.json")
-    if path.exists():
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except Exception:  # pragma: no cover
-            logger.warning("ip_addresses.json is corrupted; using default")
-    return {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-
-
-def save_ip_addresses(addresses: Dict[str, Any]) -> bool:
-    try:
-        with open("ip_addresses.json", "w") as f:
-            json.dump(addresses, f, indent=4)
-        return True
-    except Exception as exc:  # pragma: no cover
-        logger.error("Failed to save IP addresses: %s", exc)
-        return False
-
-
-DEFAULT_WEIGHT_PREF = {"unit": "lb", "label": "lbs", "value": 1.0}
-
-def load_weight_preference() -> Dict[str, Any]:
-    return DEFAULT_WEIGHT_PREF.copy()
-
-
-def save_weight_preference(unit: str, label: str = "", value: float = 1.0) -> bool:
-    pref = {"unit": unit, "label": label, "value": value}
-    settings = load_display_settings() or {}
-    settings.update({
-        "capacity_unit": unit,
-        "capacity_custom_label": label,
-        "capacity_custom_value": value,
-    })
-    return save_display_settings(settings) and True
-
-
-def load_theme_preference() -> str:
-    settings = load_display_settings()
-    if settings:
-        return settings.get("app_theme", "light")
-    return "light"
-
-
-def save_theme_preference(theme: str) -> bool:
-    settings = load_display_settings() or {}
-    settings["app_theme"] = theme
-    return save_display_settings(settings)
-
-
-def load_language_preference() -> str:
-    settings = load_display_settings()
-    return settings.get("language", "en") if settings else "en"
-
-
-def save_language_preference(language: str) -> bool:
-    settings = load_display_settings() or {}
-    settings["language"] = language
-    return save_display_settings(settings)
-
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DISPLAY_SETTINGS_PATH = ROOT_DIR / "display_settings.json"
+IP_ADDRESSES_PATH = ROOT_DIR / "ip_addresses.json"
+EMAIL_SETTINGS_PATH = ROOT_DIR / "email_settings.json"
+THRESHOLD_SETTINGS_PATH = ROOT_DIR / "threshold_settings.json"
 
 DEFAULT_EMAIL_SETTINGS = {
     "smtp_server": "smtp.postmarkapp.com",
@@ -107,11 +22,247 @@ DEFAULT_EMAIL_SETTINGS = {
     "from_address": "jcantu@satake-usa.com",
 }
 
+DEFAULT_WEIGHT_PREF = {"unit": "lb", "label": "lbs", "value": 1.0}
+DEFAULT_LANGUAGE = "en"
 
-def load_email_settings() -> Dict[str, Any]:
-    if EMAIL_SETTINGS_PATH.exists():
-        try:
-            with open(EMAIL_SETTINGS_PATH, "r") as f:
+
+def load_display_settings(path: Path = DISPLAY_SETTINGS_PATH):
+    """Load display settings from ``path``."""
+    try:
+        if path.exists():
+            with open(path, "r") as f:
+                loaded_settings = json.load(f)
+            settings = {}
+            for key, value in loaded_settings.items():
+                if str(key).isdigit():
+                    settings[int(key)] = value
+                else:
+                    settings[key] = value
+            return settings
+        return None
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading display settings: {e}")
+        return None
+
+
+def save_display_settings(settings: dict, path: Path = DISPLAY_SETTINGS_PATH) -> bool:
+    """Save display settings to ``path``."""
+    try:
+        json_settings = {str(k): v for k, v in settings.items()}
+        with open(path, "w") as f:
+            json.dump(json_settings, f, indent=4)
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving display settings: {e}")
+        return False
+
+
+def save_ip_addresses(addresses: dict, path: Path = IP_ADDRESSES_PATH) -> bool:
+    """Save IP addresses to ``path``."""
+    try:
+        with open(path, "w") as f:
+            json.dump(addresses, f, indent=4)
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving IP addresses: {e}")
+        return False
+
+
+def load_ip_addresses(path: Path = IP_ADDRESSES_PATH) -> dict:
+    """Load IP addresses from ``path``. Returns defaults if file is missing or invalid."""
+    try:
+        default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
+        if path.exists():
+            with open(path, "r") as f:
+                addresses = json.load(f)
+            if not isinstance(addresses, dict) or "addresses" not in addresses:
+                logger.warning("Invalid format in ip_addresses.json, using default")
+                return default_data
+            if not isinstance(addresses["addresses"], list):
+                logger.warning("'addresses' is not a list in ip_addresses.json, using default")
+                return default_data
+            valid = []
+            for item in addresses["addresses"]:
+                if isinstance(item, dict) and "ip" in item and "label" in item:
+                    valid.append(item)
+                else:
+                    logger.warning(f"Invalid address entry: {item}")
+            if valid:
+                addresses["addresses"] = valid
+                return addresses
+            return default_data
+        return default_data
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading IP addresses: {e}")
+        return {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
+
+
+def load_theme_preference(path: Path = DISPLAY_SETTINGS_PATH) -> str:
+    """Load the UI theme preference."""
+    try:
+        if path.exists():
+            with open(path, "r") as f:
+                settings = json.load(f)
+                return settings.get("app_theme", "light")
+        return "light"
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading theme preference: {e}")
+        return "light"
+
+
+def save_theme_preference(theme: str, path: Path = DISPLAY_SETTINGS_PATH) -> bool:
+    """Save theme preference."""
+    try:
+        settings = {}
+        if path.exists():
+            with open(path, "r") as f:
+                try:
+                    settings = json.load(f)
+                except json.JSONDecodeError:
+                    settings = {}
+        settings["app_theme"] = theme
+        with open(path, "w") as f:
+            json.dump(settings, f, indent=4)
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving theme preference: {e}")
+        return False
+
+
+def load_weight_preference(path: Path = DISPLAY_SETTINGS_PATH) -> dict:
+    """Load capacity unit preference."""
+    try:
+        if path.exists():
+            with open(path, "r") as f:
+                settings = json.load(f)
+                return {
+                    "unit": settings.get("capacity_unit", "lb"),
+                    "label": settings.get("capacity_custom_label", ""),
+                    "value": settings.get("capacity_custom_value", 1.0),
+                }
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading capacity unit preference: {e}")
+    return DEFAULT_WEIGHT_PREF.copy()
+
+
+def save_weight_preference(unit: str, label: str = "", value: float = 1.0, path: Path = DISPLAY_SETTINGS_PATH) -> bool:
+    """Save capacity unit preference."""
+    try:
+        settings = {}
+        if path.exists():
+            with open(path, "r") as f:
+                try:
+                    settings = json.load(f)
+                except json.JSONDecodeError:
+                    settings = {}
+        settings["capacity_unit"] = unit
+        settings["capacity_custom_label"] = label
+        settings["capacity_custom_value"] = value
+        with open(path, "w") as f:
+            json.dump(settings, f, indent=4)
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving capacity unit preference: {e}")
+        return False
+
+
+def load_language_preference(path: Path = DISPLAY_SETTINGS_PATH) -> str:
+    """Load UI language preference."""
+    try:
+        if path.exists():
+            with open(path, "r") as f:
+                settings = json.load(f)
+                return settings.get("language", DEFAULT_LANGUAGE)
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading language preference: {e}")
+    return DEFAULT_LANGUAGE
+
+
+def save_language_preference(language: str, path: Path = DISPLAY_SETTINGS_PATH) -> bool:
+    """Save UI language preference."""
+    try:
+        settings = {}
+        if path.exists():
+            with open(path, "r") as f:
+                try:
+                    settings = json.load(f)
+                except json.JSONDecodeError:
+                    settings = {}
+        settings["language"] = language
+        with open(path, "w") as f:
+            json.dump(settings, f, indent=4)
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving language preference: {e}")
+        return False
+
+
+def convert_capacity_from_kg(value_kg: float, pref: dict) -> float:
+    """Convert capacity from kilograms based on unit preference."""
+    if value_kg is None:
+        return 0
+    unit = pref.get("unit", "lb")
+    if unit == "kg":
+        return value_kg
+    lbs = value_kg * 2.205
+    if unit == "lb":
+        return lbs
+    if unit == "custom":
+
+        per_unit = pref.get("value", 1.0)
+        return lbs / per_unit if per_unit else 0
+    return lbs
+
+
+
+def convert_capacity_to_lbs(value: float, pref: dict) -> float:
+    """Convert capacity value to pounds."""
+    if value is None:
+        return 0
+    unit = pref.get("unit", "lb")
+    if unit == "kg":
+        return value * 2.205
+    if unit == "lb":
+        return value
+    if unit == "custom":
+        per_unit = pref.get("value", 1.0)
+        return value * per_unit
+    return value
+
+
+def convert_capacity_from_lbs(value_lbs: float, pref: dict) -> float:
+    """Convert capacity from pounds to preferred unit."""
+    if value_lbs is None:
+        return 0
+    unit = pref.get("unit", "lb")
+    if unit == "kg":
+        return value_lbs / 2.205
+    if unit == "lb":
+        return value_lbs
+    if unit == "custom":
+
+        per_unit = pref.get("value", 1.0)
+        return value_lbs / per_unit if per_unit else 0
+    return value_lbs
+
+
+
+def capacity_unit_label(pref: dict, per_hour: bool = True) -> str:
+    unit = pref.get("unit", "lb")
+    if unit == "kg":
+        label = "kg"
+    elif unit == "lb":
+        label = "lbs"
+    else:
+        label = pref.get("label", "unit")
+    return f"{label}/hr" if per_hour else label
+
+
+def load_email_settings(path: Path = EMAIL_SETTINGS_PATH) -> dict:
+    """Load SMTP email settings."""
+    try:
+        if path.exists():
+            with open(path, "r") as f:
                 data = json.load(f)
                 return {
                     "smtp_server": data.get("smtp_server", DEFAULT_EMAIL_SETTINGS["smtp_server"]),
@@ -120,78 +271,53 @@ def load_email_settings() -> Dict[str, Any]:
                     "smtp_password": data.get("smtp_password", ""),
                     "from_address": data.get("from_address", DEFAULT_EMAIL_SETTINGS["from_address"]),
                 }
-        except Exception as exc:  # pragma: no cover
-            logger.error("Failed to load email settings: %s", exc)
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading email settings: {e}")
     return DEFAULT_EMAIL_SETTINGS.copy()
 
 
-def save_email_settings(settings: Dict[str, Any]) -> bool:
+def save_email_settings(settings: dict, path: Path = EMAIL_SETTINGS_PATH) -> bool:
+    """Save SMTP email settings."""
     try:
-        with open(EMAIL_SETTINGS_PATH, "w") as f:
+        with open(path, "w") as f:
             json.dump(settings, f, indent=4)
         return True
-    except Exception as exc:  # pragma: no cover
-        logger.error("Failed to save email settings: %s", exc)
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving email settings: {e}")
         return False
 
 
-# Threshold settings ---------------------------------------------------------
-
-def load_threshold_settings() -> Dict[str, Any] | None:
-    path = Path("threshold_settings.json")
-    if path.exists():
-        try:
+def load_threshold_settings(path: Path = THRESHOLD_SETTINGS_PATH):
+    """Load threshold settings from ``path``."""
+    try:
+        if path.exists():
             with open(path, "r") as f:
-                return json.load(f)
-        except Exception as exc:  # pragma: no cover
-            logger.error("Failed to load threshold settings: %s", exc)
-    return None
+                loaded_settings = json.load(f)
+            settings = {}
+            for key, value in loaded_settings.items():
+                if key in ["email_enabled", "email_address", "email_minutes"]:
+                    settings[key] = value
+                else:
+                    settings[int(key)] = value
+            return settings
+        else:
+            return None
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error loading threshold settings: {e}")
+        return None
 
 
-def save_threshold_settings(settings: Dict[str, Any]) -> bool:
+def save_threshold_settings(settings: dict, path: Path = THRESHOLD_SETTINGS_PATH) -> bool:
+    """Save threshold settings to ``path``."""
     try:
-        with open("threshold_settings.json", "w") as f:
-            json.dump(settings, f, indent=4)
+        json_settings = {str(k): v for k, v in settings.items()}
+        with open(path, "w") as f:
+            json.dump(json_settings, f, indent=4)
         return True
-    except Exception as exc:  # pragma: no cover
-        logger.error("Failed to save threshold settings: %s", exc)
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error saving threshold settings: {e}")
         return False
 
-
-def convert_capacity_from_kg(value_kg: float, pref: Dict[str, Any]) -> float:
-    if pref.get("unit") == "kg":
-        return value_kg
-    lbs = value_kg * 2.205
-    if pref.get("unit") == "custom":
-        per_unit = pref.get("value", 1.0)
-        return lbs / per_unit if per_unit else 0
-    return lbs
-
-
-def convert_capacity_to_lbs(value: float, pref: Dict[str, Any]) -> float:
-    if pref.get("unit") == "kg":
-        return value * 2.205
-    if pref.get("unit") == "custom":
-        return value * pref.get("value", 1.0)
-    return value
-
-
-def convert_capacity_from_lbs(value_lbs: float, pref: Dict[str, Any]) -> float:
-    if pref.get("unit") == "kg":
-        return value_lbs / 2.205
-    if pref.get("unit") == "custom":
-        per_unit = pref.get("value", 1.0)
-        return value_lbs / per_unit if per_unit else 0
-    return value_lbs
-
-
-def capacity_unit_label(pref: Dict[str, Any], per_hour: bool = True) -> str:
-    label = pref.get("label", "unit")
-    if pref.get("unit") == "kg":
-        label = "kg"
-    elif pref.get("unit") == "lb":
-        label = "lbs"
-    return f"{label}/hr" if per_hour else label
 
 
 __all__ = [
@@ -213,4 +339,5 @@ __all__ = [
     "convert_capacity_to_lbs",
     "convert_capacity_from_lbs",
     "capacity_unit_label",
+    "DEFAULT_LANGUAGE",
 ]

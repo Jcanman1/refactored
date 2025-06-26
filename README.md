@@ -25,10 +25,8 @@ pip install -r requirements.txt
 Run the dashboard application:
 
 ```bash
-python EnpresorOPCDataViewBeforeRestructure.py
+python run_dashboard.py
 ```
-
-Alternatively you can start the same dashboard with `python run_dashboard.py`.
 
 Images used by the dashboard should be placed in an `assets/` directory that
 resides next to the script so Dash can serve them automatically.
@@ -41,4 +39,17 @@ not already exist.
 The `Audiowide-Regular.ttf` font used when generating PDF reports is kept in
 the repository root. Ensure this file remains in place so the report generator
 can locate it.
+
+## Package layout
+
+The project is structured as a Python package named `dashboard`:
+
+- `dashboard/__init__.py` exposes the main Dash `app` and re-exports helpers.
+- `dashboard/callbacks.py` loads all callback definitions.
+- `dashboard/layout.py` provides layout building utilities.
+- `dashboard/opc_client.py` contains OPC UA connection helpers.
+- `dashboard/settings.py` handles user configuration and unit conversions.
+- `dashboard/state.py` defines the global state classes used by the app.
+
+Use `python run_dashboard.py` to start the application which uses this package.
 
