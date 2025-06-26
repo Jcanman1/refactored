@@ -23,6 +23,7 @@ from dashboard import (
     delayed_startup_connect,
     load_saved_image,
 )
+from dashboard.layout import render_new_dashboard
 from dashboard.state import app_state
 
 logger = logging.getLogger(__name__)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
 
             threading.Thread(target=open_browser).start()
 
-        app.layout = html.Div("Dashboard running...")
+        app.layout = render_new_dashboard()
 
         app.run(debug=False, use_reloader=False, host="0.0.0.0", port=8050)
 

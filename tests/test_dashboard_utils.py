@@ -184,8 +184,9 @@ def test_opc_client_run_async_and_thread_helpers(monkeypatch):
     assert dummy_thread.started is True
 
 
-def test_layout_functions_return_none(monkeypatch):
+def test_layout_functions_return_components(monkeypatch):
     _, _, _, layout, _ = load_modules(monkeypatch)
+
 
     assert layout.render_new_dashboard() is None
     assert layout.render_floor_machine_layout_with_customizable_names() is None
@@ -229,3 +230,4 @@ def test_reconnection_helpers_execute(monkeypatch):
     startup.delayed_startup_connect()
 
     assert calls["connect"] == "opc.tcp://example:4840"
+
