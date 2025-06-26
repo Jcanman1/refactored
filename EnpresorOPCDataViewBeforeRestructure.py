@@ -32,6 +32,16 @@ import json
 import tempfile
 from pathlib import Path
 from collections import defaultdict
+from dashboard.opc_client import (
+    run_async,
+    pause_update_thread,
+    resume_update_thread,
+    connect_to_server,
+    disconnect_from_server,
+    discover_tags,
+    debug_discovered_tags,
+    discover_all_tags,
+)
 try:
     import generate_report
 except Exception as exc:  # pragma: no cover - optional dependency
@@ -940,65 +950,6 @@ def opc_update_thread():
             
         time.sleep(1)
 
-# Run async function in the event loop
-def run_async(coro):
-    loop = get_event_loop()
-    return loop.run_until_complete(coro)
-
-
-def pause_update_thread():
-    """Stop the background update thread if running."""
-    if app_state.update_thread and app_state.update_thread.is_alive():
-        app_state.thread_stop_flag = True
-        app_state.update_thread.join(timeout=5)
-
-
-def resume_update_thread():
-    """Restart the background update thread if it is not running."""
-    if app_state.update_thread is None or not app_state.update_thread.is_alive():
-        app_state.thread_stop_flag = False
-        app_state.update_thread = Thread(target=opc_update_thread)
-        app_state.update_thread.daemon = True
-        app_state.update_thread.start()
-
-# Connect to OPC UA server
-async def connect_to_server(server_url, server_name=None):
-    """Connect to the OPC UA server"""
-    try:
-        logger.info(f"Connecting to OPC UA server at {server_url}...")
-        
-        # Create client
-        app_state.client = Client(server_url)
-        
-        # Set application name
-        if server_name:
-            app_state.client.application_uri = f"urn:{server_name}"
-            logger.info(f"Setting application URI to: {app_state.client.application_uri}")
-        
-        # Connect to server
-        app_state.client.connect()
-        logger.info("Connected to server")
-        
-        # Discover tags
-        await discover_tags()
-        debug_discovered_tags()  # Add this line
-
-        # Start background thread
-        if app_state.update_thread is None or not app_state.update_thread.is_alive():
-            app_state.thread_stop_flag = False
-            app_state.update_thread = Thread(target=opc_update_thread)
-            app_state.update_thread.daemon = True
-            app_state.update_thread.start()
-            logger.info("Started background update thread")
-            
-        app_state.connected = True
-        app_state.last_update_time = datetime.now()
-        return True
-        
-    except Exception as e:
-        logger.error(f"Connection error: {e}")
-        app_state.connected = False
-        return False
 
 def create_threshold_settings_form():
     """Create a form for threshold settings"""
@@ -1125,223 +1076,6 @@ try:
 except Exception as e:
     logger.error(f"Error loading threshold settings: {e}")
 
-# Discover available tags
-async def discover_tags():
-    """Discover available tags on the server"""
-    if not app_state.client:
-        return False
-        
-    try:
-        logger.info("Discovering tags...")
-        root = app_state.client.get_root_node()
-        objects = app_state.client.get_objects_node()
-        
-        # Clear existing tags
-        app_state.tags = {}
-        
-        # First, try to connect to all known tags explicitly
-        logger.info("Attempting to connect to known tags...")
-        for tag_name, node_id in KNOWN_TAGS.items():
-            if tag_name not in FAST_UPDATE_TAGS:
-                continue
-            try:
-                node = app_state.client.get_node(node_id)
-                value = node.get_value()
-                
-                logger.info(f"Successfully connected to known tag: {tag_name} = {value}")
-                
-                # Add to tags
-                tag_data = TagData(tag_name)
-                tag_data.add_value(value)
-                app_state.tags[tag_name] = {
-                    'node': node,
-                    'data': tag_data
-                }
-            except Exception as e:
-                logger.warning(f"Could not connect to known tag {tag_name} ({node_id}): {e}")
-        
-        # Then do the existing discovery process for any additional tags
-        logger.info("Performing additional tag discovery...")
-        
-        # Function to recursively browse nodes
-        async def browse_nodes(node, level=0, max_level=3):
-            if level > max_level:
-                return
-                
-            try:
-                children = node.get_children()
-                for child in children:
-                    try:
-                        name = child.get_browse_name().Name
-                        node_class = child.get_node_class()
-                        
-                        # If it's a variable, add it to our tags (if not already added)
-                        if node_class == ua.NodeClass.Variable:
-                            try:
-                                # Skip if name already exists or is not in FAST_UPDATE_TAGS
-                                if name in app_state.tags or name not in FAST_UPDATE_TAGS:
-                                    continue
-                                    
-                                value = child.get_value()
-                                logger.debug(f"Found additional tag: {name} = {value}")
-                                
-                                tag_data = TagData(name)
-                                tag_data.add_value(value)
-                                app_state.tags[name] = {
-                                    'node': child,
-                                    'data': tag_data
-                                }
-                            except Exception:
-                                pass
-                        
-                        # Continue browsing deeper
-                        await browse_nodes(child, level + 1, max_level)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-        
-        # Start browsing from objects node with limited depth
-        await browse_nodes(objects, 0, 2)
-        
-        logger.info(f"Total tags discovered: {len(app_state.tags)}")
-        
-        # Log specifically if our test weight tags were found
-        if "Settings.ColorSort.TestWeightValue" in app_state.tags:
-            weight_value = app_state.tags["Settings.ColorSort.TestWeightValue"]["data"].latest_value
-            logger.info(f"✓ TestWeightValue tag found with value: {weight_value}")
-        else:
-            logger.warning("✗ TestWeightValue tag NOT found")
-            
-        if "Settings.ColorSort.TestWeightCount" in app_state.tags:
-            count_value = app_state.tags["Settings.ColorSort.TestWeightCount"]["data"].latest_value
-            logger.info(f"✓ TestWeightCount tag found with value: {count_value}")
-        else:
-            logger.warning("✗ TestWeightCount tag NOT found")
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error discovering tags: {e}")
-        return False
-
-# Disconnect from OPC UA server
-async def disconnect_from_server():
-    try:
-        logger.info("Disconnecting from server...")
-        
-        # Stop background thread
-        if app_state.update_thread and app_state.update_thread.is_alive():
-            app_state.thread_stop_flag = True
-            app_state.update_thread.join(timeout=5)
-            
-        # Disconnect client
-        if app_state.client:
-            app_state.client.disconnect()
-            
-        app_state.connected = False
-        logger.info("Disconnected from server")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Disconnection error: {e}")
-        return False
-
-def debug_discovered_tags():
-    """Write discovered tags to a file to see what's actually available"""
-    import os
-    
-    # Use absolute path so we know exactly where it goes
-    file_path = os.path.abspath('discovered_tags.txt')
-    logger.info(f"Writing {len(app_state.tags)} discovered tags to: {file_path}")
-    
-    try:
-        with open(file_path, 'w') as f:
-            f.write(f"Total tags discovered: {len(app_state.tags)}\n\n")
-            
-            # Group tags by category to make it easier to read
-            categories = {}
-            
-            for tag_name, tag_info in app_state.tags.items():
-                try:
-                    value = tag_info['data'].latest_value
-                    node_id = str(tag_info['node'].nodeid)
-                    
-                    # Try to categorize by the first part of the name
-                    category = tag_name.split('.')[0] if '.' in tag_name else 'Other'
-                    if category not in categories:
-                        categories[category] = []
-                    
-                    categories[category].append({
-                        'name': tag_name,
-                        'node_id': node_id,
-                        'value': value
-                    })
-                    
-                except Exception as e:
-                    category = 'Errors'
-                    if category not in categories:
-                        categories[category] = []
-                    categories[category].append({
-                        'name': tag_name,
-                        'node_id': 'unknown',
-                        'value': f'Error: {e}'
-                    })
-            
-            # Write organized output
-            for category, tags in sorted(categories.items()):
-                f.write(f"\n=== {category.upper()} TAGS ===\n")
-                for tag in tags[:50]:  # Limit to first 50 per category
-                    f.write(f"Name: {tag['name']}\n")
-                    f.write(f"NodeID: {tag['node_id']}\n") 
-                    f.write(f"Value: {tag['value']}\n\n")
-                
-                if len(tags) > 50:
-                    f.write(f"... and {len(tags) - 50} more tags in this category\n\n")
-        
-        logger.info(f"SUCCESS: Tag discovery results written to: {file_path}")
-        
-    except Exception as e:
-        logger.error(f"ERROR writing file: {e}")
-
-
-async def discover_all_tags(client):
-    """Return a dict of all tags available from the OPC server."""
-    tags = {}
-
-    try:
-        objects = client.get_objects_node()
-
-        async def browse_nodes(node, level=0, max_level=3):
-            if level > max_level:
-                return
-            try:
-                children = node.get_children()
-                for child in children:
-                    try:
-                        name = child.get_browse_name().Name
-                        node_class = child.get_node_class()
-                        if node_class == ua.NodeClass.Variable:
-                            if name not in tags:
-                                try:
-                                    value = child.get_value()
-                                    tag_data = TagData(name)
-                                    tag_data.add_value(value)
-                                    tags[name] = {"node": child, "data": tag_data}
-                                except Exception:
-                                    pass
-                        await browse_nodes(child, level + 1, max_level)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-        await browse_nodes(objects, 0, 2)
-        logger.info(f"Full tag discovery found {len(tags)} tags")
-    except Exception as e:
-        logger.error(f"Error during full tag discovery: {e}")
-
-    return tags
 
 def load_theme_preference():
     """Load theme preference from display_settings.json"""
