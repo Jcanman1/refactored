@@ -32,6 +32,7 @@ import json
 import tempfile
 from pathlib import Path
 from collections import defaultdict
+
 from dashboard.opc_client import (
     run_async,
     pause_update_thread,
@@ -41,6 +42,7 @@ from dashboard.opc_client import (
     discover_tags,
     debug_discovered_tags,
     discover_all_tags,
+
 )
 try:
     import generate_report
@@ -296,43 +298,6 @@ def load_saved_image():
         return {}
 
 
-DEFAULT_EMAIL_SETTINGS = {
-    "smtp_server": "smtp.postmarkapp.com",
-    "smtp_port": 587,
-    "smtp_username": "",
-    "smtp_password": "",
-    "from_address": "jcantu@satake-usa.com",
-}
-
-
-def load_email_settings():
-    """Load SMTP email settings from a JSON file."""
-    try:
-        if EMAIL_SETTINGS_PATH.exists():
-            with open(EMAIL_SETTINGS_PATH, "r") as f:
-                data = json.load(f)
-                return {
-                    "smtp_server": data.get("smtp_server", DEFAULT_EMAIL_SETTINGS["smtp_server"]),
-                    "smtp_port": data.get("smtp_port", DEFAULT_EMAIL_SETTINGS["smtp_port"]),
-                    "smtp_username": data.get("smtp_username", ""),
-                    "smtp_password": data.get("smtp_password", ""),
-                    "from_address": data.get("from_address", DEFAULT_EMAIL_SETTINGS["from_address"]),
-                }
-    except Exception as e:
-        logger.error(f"Error loading email settings: {e}")
-    return DEFAULT_EMAIL_SETTINGS.copy()
-
-
-def save_email_settings(settings):
-    """Save SMTP email settings to ``email_settings.json``."""
-    try:
-        with open(EMAIL_SETTINGS_PATH, "w") as f:
-            json.dump(settings, f, indent=4)
-        logger.info("Email settings saved successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving email settings: {e}")
-        return False
 
 
 email_settings = load_email_settings()
@@ -386,88 +351,6 @@ def send_threshold_email(sensitivity_num, is_high=True):
         return False
 
 # Then define the load function
-def load_threshold_settings():
-    """Load threshold settings from a JSON file"""
-    try:
-        # Log the current working directory to help debug file access issues
-        current_dir = os.getcwd()
-        logger.info(f"Loading threshold settings from '{current_dir}/threshold_settings.json'")
-        
-        if os.path.exists('threshold_settings.json'):
-            with open('threshold_settings.json', 'r') as f:
-                loaded_settings = json.load(f)
-                
-                # Convert string keys back to integers for internal use (except special keys)
-                settings = {}
-                for key, value in loaded_settings.items():
-                    if key in ['email_enabled', 'email_address', 'email_minutes']:
-                        settings[key] = value
-                    else:
-                        settings[int(key)] = value
-                
-                # Log what was loaded
-                logger.info(f"Loaded threshold settings: {settings.keys()}")
-                return settings
-        else:
-            logger.warning("No threshold_settings.json file found")
-            return None
-    except Exception as e:
-        logger.error(f"Error loading threshold settings: {e}")
-        return None
-
-def save_theme_preference(theme):
-    """Save theme preference to display_settings.json"""
-    try:
-        # Load existing settings if file exists
-        settings = {}
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    logger.warning("display_settings.json is corrupted, creating new file")
-                    settings = {}
-        
-        # Update the theme setting
-        settings['app_theme'] = theme
-        
-        # Save back to file
-        with open('display_settings.json', 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Successfully saved theme preference: {theme} to display_settings.json")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error saving theme preference: {e}")
-        return False
-
-def save_threshold_settings(settings):
-    """Save threshold settings to a JSON file"""
-    try:
-        # Log the current working directory to help debug file access issues
-        current_dir = os.getcwd()
-        logger.info(f"Saving threshold settings to '{current_dir}/threshold_settings.json'")
-        
-        # Convert integer keys to strings for JSON serialization
-        json_settings = {}
-        for key, value in settings.items():
-            if isinstance(key, int):
-                json_settings[str(key)] = value
-            else:
-                json_settings[key] = value
-        
-        # Log what we're saving
-        logger.info(f"Saving settings with keys: {json_settings.keys()}")
-        
-        with open('threshold_settings.json', 'w') as f:
-            json.dump(json_settings, f, indent=4)
-            
-        logger.info("Threshold settings saved successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving threshold settings: {e}")
-        
-        return False
 
 
 threshold_settings = DEFAULT_THRESHOLD_SETTINGS.copy()
@@ -521,6 +404,17 @@ from dashboard.state import AppState, TagData, app_state
 # Global display settings - initialize with all traces visible
 display_settings = {i: True for i in range(1, 13)}  # Default: all traces visible
 active_machine_id = None  # This will track which machine's data to display on main dashboard
+
+# Try to load display settings at startup
+try:
+    loaded_display_settings = load_display_settings()
+    if loaded_display_settings is not None:
+        display_settings.update(loaded_display_settings)
+        logger.info("Loaded display settings from file")
+    else:
+        logger.info("No display settings file found, using defaults")
+except Exception as e:
+    logger.error(f"Error updating display settings: {e}")
 
 # Current application mode ("demo", "live" or "historical").  This is updated by
 # a Dash callback whenever the ``app-mode`` store changes so that background
@@ -664,111 +558,6 @@ prev_active_states = defaultdict(
 
 
 # Function to load display settings
-def load_display_settings():
-    """Load display settings from a JSON file"""
-    try:
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                loaded_settings = json.load(f)
-                
-                # Convert numeric keys back to integers and keep others as-is
-                settings = {}
-                for key, value in loaded_settings.items():
-                    if str(key).isdigit():
-                        settings[int(key)] = value
-                    else:
-                        settings[key] = value
-                
-                # Return the loaded settings
-                return settings
-        return None
-    except Exception as e:
-        logger.error(f"Error loading display settings: {e}")
-        return None
-
-# Function to save display settings
-def save_display_settings(settings):
-    """Save display settings to a JSON file"""
-    try:
-        # Convert all keys to strings for JSON serialization
-        json_settings = {}
-        for key, value in settings.items():
-            json_settings[str(key)] = value
-            
-        with open('display_settings.json', 'w') as f:
-            json.dump(json_settings, f, indent=4)
-        return True
-    except Exception as e:
-        logger.error(f"Error saving display settings: {e}")
-        return False
-
-# Try to load display settings at startup
-try:
-    loaded_display_settings = load_display_settings()
-    if loaded_display_settings is not None:
-        display_settings.update(loaded_display_settings)
-        logger.info("Loaded display settings from file")
-    else:
-        logger.info("No display settings file found, using defaults")
-except Exception as e:
-    logger.error(f"Error updating display settings: {e}")
-
-
-
-# Function to save IP addresses to a file
-def save_ip_addresses(addresses):
-    """Save IP addresses to a JSON file"""
-    try:
-        with open('ip_addresses.json', 'w') as f:
-            json.dump(addresses, f, indent=4)
-        return True
-    except Exception as e:
-        logger.error(f"Error saving IP addresses: {e}")
-        return False
-
-# Function to load IP addresses from a file
-def load_ip_addresses():
-    """Load IP addresses from a JSON file"""
-    try:
-        default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-        
-        if os.path.exists('ip_addresses.json'):
-            with open('ip_addresses.json', 'r') as f:
-                addresses = json.load(f)
-                
-            # Validate data structure
-            if not isinstance(addresses, dict) or "addresses" not in addresses:
-                logger.warning("Invalid format in ip_addresses.json, using default")
-                return default_data
-                
-            # Ensure addresses is a list
-            if not isinstance(addresses["addresses"], list):
-                logger.warning("'addresses' is not a list in ip_addresses.json, using default")
-                return default_data
-                
-            # Validate each address entry has ip and label
-            valid_addresses = []
-            for item in addresses["addresses"]:
-                if isinstance(item, dict) and "ip" in item and "label" in item:
-                    valid_addresses.append(item)
-                else:
-                    logger.warning(f"Invalid address entry: {item}")
-            
-            if valid_addresses:
-                addresses["addresses"] = valid_addresses
-                logger.info(f"Loaded IP addresses: {addresses}")
-                return addresses
-            else:
-                logger.warning("No valid addresses found, using default")
-                return default_data
-        else:
-            logger.info(f"No IP addresses file found, using default: {default_data}")
-            return default_data
-    except Exception as e:
-        logger.error(f"Error loading IP addresses: {e}")
-        default_data = {"addresses": [{"ip": "192.168.0.125", "label": "Default"}]}
-        logger.info(f"Error loading IP addresses, using default: {default_data}")
-        return default_data
 
 def generate_csv_string(tags_data):
     """Return CSV data for the provided tags as a string."""
@@ -1077,166 +866,6 @@ except Exception as e:
     logger.error(f"Error loading threshold settings: {e}")
 
 
-def load_theme_preference():
-    """Load theme preference from display_settings.json"""
-    try:
-        # Check if the settings file exists
-        if os.path.exists('display_settings.json'):
-            with open('display_settings.json', 'r') as f:
-                try:
-                    settings = json.load(f)
-                    theme = settings.get('app_theme', 'light')
-                    logger.info(f"Loaded theme from file: {theme}")
-                    return theme
-                except json.JSONDecodeError:
-                    logger.warning("display_settings.json is corrupted, using default theme")
-                    return 'light'
-        else:
-            logger.info("display_settings.json doesn't exist, using default theme")
-            return 'light'  # Default theme if file doesn't exist
-            
-    except Exception as e:
-        logger.error(f"Error loading theme preference: {e}")
-        return 'light'  # Default to light theme in case of error
-
-
-DEFAULT_WEIGHT_PREF = {"unit": "lb", "label": "lbs", "value": 1.0}
-
-def load_weight_preference():
-    """Load capacity unit preference from display_settings.json"""
-    try:
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                settings = json.load(f)
-                return {
-                    "unit": settings.get('capacity_unit', 'lb'),
-                    "label": settings.get('capacity_custom_label', ''),
-                    "value": settings.get('capacity_custom_value', 1.0),
-                }
-    except Exception as e:
-        logger.error(f"Error loading capacity unit preference: {e}")
-    return DEFAULT_WEIGHT_PREF.copy()
-
-
-def save_weight_preference(unit, label="", value=1.0):
-    """Save capacity unit preference to display_settings.json"""
-    try:
-        settings = {}
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    settings = {}
-
-        settings['capacity_unit'] = unit
-        settings['capacity_custom_label'] = label
-        settings['capacity_custom_value'] = value
-
-        with open(DISPLAY_SETTINGS_PATH, 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Saved capacity unit preference: {unit}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving capacity unit preference: {e}")
-        return False
-
-
-DEFAULT_LANGUAGE = "en"
-
-def load_language_preference():
-    """Load UI language preference from ``display_settings.json``"""
-    try:
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                settings = json.load(f)
-                return settings.get('language', DEFAULT_LANGUAGE)
-    except Exception as e:
-        logger.error(f"Error loading language preference: {e}")
-    return DEFAULT_LANGUAGE
-
-
-def save_language_preference(language):
-    """Save UI language preference to ``display_settings.json``"""
-    try:
-        settings = {}
-        if DISPLAY_SETTINGS_PATH.exists():
-            with open(DISPLAY_SETTINGS_PATH, 'r') as f:
-                try:
-                    settings = json.load(f)
-                except json.JSONDecodeError:
-                    settings = {}
-
-        settings['language'] = language
-
-        with open(DISPLAY_SETTINGS_PATH, 'w') as f:
-            json.dump(settings, f, indent=4)
-        logger.info(f"Saved language preference: {language}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving language preference: {e}")
-        return False
-
-
-def convert_capacity_from_kg(value_kg, pref):
-    """Convert capacity from kilograms based on selected unit preference"""
-    if value_kg is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value_kg
-    lbs = value_kg * 2.205
-    if unit == 'lb':
-        return lbs
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        if per_unit:
-            return lbs / per_unit
-        return 0
-    return lbs
-
-
-def convert_capacity_to_lbs(value, pref):
-    """Convert a capacity value based on selected unit preference to pounds."""
-    if value is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value * 2.205
-    if unit == 'lb':
-        return value
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        return value * per_unit
-    return value
-
-
-def convert_capacity_from_lbs(value_lbs, pref):
-    """Convert a capacity value in pounds to the preferred display unit."""
-    if value_lbs is None:
-        return 0
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        return value_lbs / 2.205
-    if unit == 'lb':
-        return value_lbs
-    if unit == 'custom':
-        per_unit = pref.get('value', 1.0)
-        if per_unit:
-            return value_lbs / per_unit
-        return 0
-    return value_lbs
-
-
-def capacity_unit_label(pref, per_hour=True):
-    unit = pref.get('unit', 'lb')
-    if unit == 'kg':
-        label = 'kg'
-    elif unit == 'lb':
-        label = 'lbs'
-    else:
-        label = pref.get('label', 'unit')
-    return f"{label}/hr" if per_hour else label
 
 
 
