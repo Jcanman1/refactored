@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from .settings import load_language_preference
+from .settings import load_language_preference, load_weight_preference
 
 # ``dash`` is an optional dependency during testing.  These helpers fall
 # back to lightweight stubs when the package is unavailable so that the unit
@@ -63,6 +63,10 @@ def render_new_dashboard() -> Any:
                 n_intervals=0,
             ),
             dcc.Store(id="production-data-store"),
+            dcc.Store(
+                id="weight-preference-store",
+                data=load_weight_preference(),
+            ),
             dcc.Store(
                 id="language-preference-store",
                 data=load_language_preference(),

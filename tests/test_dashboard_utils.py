@@ -198,6 +198,24 @@ def test_layout_functions_return_components(monkeypatch):
         assert hasattr(component, "children")
 
 
+def test_render_new_dashboard_has_weight_store(monkeypatch):
+    _, _, _, layout, _ = load_modules(monkeypatch)
+    comp = layout.render_new_dashboard()
+
+    def find_weight_store(node):
+        if getattr(node, "props", {}).get("id") == "weight-preference-store":
+            return True
+        children = getattr(node, "children", []) or []
+        if len(children) == 1 and isinstance(children[0], list):
+            children = children[0]
+        for child in children:
+            if find_weight_store(child):
+                return True
+        return False
+
+    assert find_weight_store(comp)
+
+
 def test_reconnection_helpers_execute(monkeypatch):
     calls = {}
 
