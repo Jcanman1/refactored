@@ -184,11 +184,17 @@ def test_opc_client_run_async_and_thread_helpers(monkeypatch):
     assert dummy_thread.started is True
 
 
-def test_layout_functions_return_none(monkeypatch):
+def test_layout_functions_return_components(monkeypatch):
     _, _, _, layout, _ = load_modules(monkeypatch)
 
-    assert layout.render_new_dashboard() is None
-    assert layout.render_floor_machine_layout_with_customizable_names() is None
-    assert (
-        layout.render_floor_machine_layout_enhanced_with_selection() is None
-    )
+    dash_layout = layout.render_new_dashboard()
+    assert dash_layout is not None
+    assert hasattr(dash_layout, "children")
+
+    floor_layout = layout.render_floor_machine_layout_with_customizable_names()
+    assert floor_layout is not None
+    assert hasattr(floor_layout, "children")
+
+    enhanced_layout = layout.render_floor_machine_layout_enhanced_with_selection()
+    assert enhanced_layout is not None
+    assert hasattr(enhanced_layout, "children")
