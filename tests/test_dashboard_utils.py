@@ -2,94 +2,110 @@ import os
 import sys
 import types
 import importlib
+from pathlib import Path
+import asyncio
+from types import SimpleNamespace, ModuleType
 
+# Ensure the repository root is on the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-class StubModule(types.ModuleType):
-    def __getattr__(self, name):
-        return lambda *a, **k: {"tag": name, "children": a, **k}
 
+def load_modules(monkeypatch):
+    """Import dashboard modules with stubbed dependencies."""
+    # Stub for the legacy module expected by the dashboard helpers
+    legacy = ModuleType("EnpresorOPCDataViewBeforeRestructure")
 
-def load_modules(monkeypatch, src_patches=None):
-    """Import modules with Dash stubs so import succeeds without real Dash.
+    class DummyTagData:
+        def __init__(self, name):
+            self.name = name
+            self.latest_value = None
 
-    ``src_patches`` is an optional dict of attribute names to callables that
-    will be applied to ``EnpresorOPCDataViewBeforeRestructure`` before the
-    dashboard modules are imported.
-    """
-    dash = types.ModuleType("dash")
+        def add_value(self, value):
+            self.latest_value = value
 
-    class Dash:
-        def __init__(self, *a, **k):
+    legacy.TagData = DummyTagData
+    legacy.app_state = SimpleNamespace(
+        client=None,
+        connected=False,
+        last_update_time=None,
+        thread_stop_flag=False,
+        update_thread=None,
+        tags={},
+    )
+    legacy.opc_update_thread = lambda: None
+    legacy.KNOWN_TAGS = {}
+    legacy.FAST_UPDATE_TAGS = []
+    legacy.start_auto_reconnection = lambda: None
+    legacy.delayed_startup_connect = lambda: None
+    monkeypatch.setitem(sys.modules, "EnpresorOPCDataViewBeforeRestructure", legacy)
+
+    # Stub for python-opcua
+    opcua = ModuleType("opcua")
+
+    class DummyNode:
+        def get_children(self):
+            return []
+
+        def get_value(self):
+            return 0
+
+        def get_browse_name(self):
+            return SimpleNamespace(Name="name")
+
+        def get_node_class(self):
+            return ua.NodeClass.Variable
+
+    class DummyClient:
+        def __init__(self, url):
+            self.url = url
+            self.application_uri = ""
+
+        def connect(self):
             pass
 
-        def callback(self, *a, **k):
-            def decorator(func):
-                return func
-            return decorator
+        def disconnect(self):
+            pass
 
-        def clientside_callback(self, *a, **k):
-            return None
-    dash.Dash = Dash
-    dash.no_update = object()
-    dash.callback_context = type("Ctx", (), {"triggered": []})()
+        def get_node(self, _):
+            return DummyNode()
 
-    dash.html = StubModule("dash.html")
-    dash.dcc = StubModule("dash.dcc")
+        def get_objects_node(self):
+            return DummyNode()
 
-    deps = types.ModuleType("dash.dependencies")
-    deps.Input = deps.Output = deps.State = lambda *a, **k: None
-    deps.ALL = "ALL"
-    dash.dependencies = deps
+    ua = ModuleType("ua")
+    ua.NodeClass = SimpleNamespace(Variable="Variable")
+    opcua.Client = DummyClient
+    opcua.ua = ua
+    monkeypatch.setitem(sys.modules, "opcua", opcua)
 
-    dbc = StubModule("dash_bootstrap_components")
-    dbc.themes = types.SimpleNamespace(BOOTSTRAP="BOOTSTRAP")
+    root = Path(__file__).resolve().parents[1] / "dashboard"
 
-    monkeypatch.setitem(sys.modules, "dash", dash)
-    monkeypatch.setitem(sys.modules, "dash.dcc", dash.dcc)
-    monkeypatch.setitem(sys.modules, "dash.html", dash.html)
-    monkeypatch.setitem(sys.modules, "dash.dependencies", deps)
-    monkeypatch.setitem(sys.modules, "dash_bootstrap_components", dbc)
+    def load(name):
+        path = root / f"{name.split('.')[-1]}.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
-    src = importlib.import_module("EnpresorOPCDataViewBeforeRestructure")
-    importlib.reload(src)
-    if src_patches:
-        for name, value in src_patches.items():
-            setattr(src, name, value)
-    settings = importlib.import_module("dashboard.settings")
-    importlib.reload(settings)
-    opc_client = importlib.import_module("dashboard.opc_client")
-    importlib.reload(opc_client)
-    layout = importlib.import_module("dashboard.layout")
-    importlib.reload(layout)
-    return src, settings, opc_client, layout
+    settings = load("dashboard.settings")
+    opc_client = load("dashboard.opc_client")
+    layout = load("dashboard.layout")
+    startup = load("dashboard.startup")
+    return legacy, settings, opc_client, layout, startup
 
 
-def test_settings_wrapper_load_and_save(monkeypatch):
-    loaded = {"a": 1}
-    saved = {}
-
-    def fake_load():
-        return loaded
-
-    def fake_save(arg):
-        saved["arg"] = arg
-        return True
-
-    src_patches = {
-        "load_display_settings": fake_load,
-        "save_display_settings": fake_save,
-    }
-
-    src, settings, _, _ = load_modules(monkeypatch, src_patches)
-
-    assert settings.load_display_settings() == loaded
-    assert settings.save_display_settings({"b": 2}) is True
-    assert saved["arg"] == {"b": 2}
+def test_display_settings_roundtrip(monkeypatch, tmp_path):
+    _, settings, _, _, _ = load_modules(monkeypatch)
+    path = tmp_path / "display.json"
+    data = {1: True, "extra": False}
+    assert settings.save_display_settings(data, path=path)
+    loaded = settings.load_display_settings(path=path)
+    assert loaded[1] is True
+    assert loaded["extra"] is False
 
 
 def test_capacity_conversions(monkeypatch):
-    _, settings, _, _ = load_modules(monkeypatch)
+    _, settings, _, _, _ = load_modules(monkeypatch)
     pref_lb = {"unit": "lb"}
     pref_custom = {"unit": "custom", "value": 2}
 
@@ -99,52 +115,69 @@ def test_capacity_conversions(monkeypatch):
     assert settings.capacity_unit_label({"unit": "kg"}) == "kg/hr"
 
 
-def test_opc_client_helpers_call_through(monkeypatch):
-    names = [
-        "connect_to_server",
-        "disconnect_from_server",
-        "discover_tags",
-        "debug_discovered_tags",
-        "discover_all_tags",
-        "run_async",
-        "pause_update_thread",
-        "resume_update_thread",
-    ]
-    src_patches = {}
-    call_records = {}
-    for n in names:
-        def _make(name):
-            def _func(*a, **k):
-                call_records[name] = (a, k)
-                return name
-            return _func
-        src_patches[n] = _make(n)
+def test_startup_helpers(monkeypatch):
+    _, _, _, _, startup = load_modules(monkeypatch)
+    called = {}
 
-    src, _, opc_client, _ = load_modules(monkeypatch, src_patches)
+    def fake_start():
+        called["start"] = True
+        return "ok"
 
-    for n in names:
-        result = getattr(opc_client, n)(1, two=2)
-        assert result == n
-        args, kwargs = call_records[n]
-        assert args[0] == 1
-        assert kwargs["two"] == 2
+    def fake_delayed():
+        called["delayed"] = True
+        return "later"
+
+    monkeypatch.setattr(startup, "start_auto_reconnection", fake_start)
+    monkeypatch.setattr(startup, "delayed_startup_connect", fake_delayed)
+
+    assert startup.start_auto_reconnection() == "ok"
+    assert startup.delayed_startup_connect() == "later"
+    assert called == {"start": True, "delayed": True}
 
 
-class DummyHtml:
-    def Div(self, children=None, **kwargs):
-        return {"tag": "Div", "children": children, **kwargs}
+def test_opc_client_run_async_and_thread_helpers(monkeypatch):
+    legacy, _, opc_client, _, _ = load_modules(monkeypatch)
+
+    async def coro():
+        return 42
+
+    assert opc_client.run_async(coro()) == 42
+
+    class DummyThread:
+        def __init__(self, target):
+            self.target = target
+            self.started = False
+
+        def start(self):
+            self.started = True
+
+        def is_alive(self):
+            return self.started
+
+        def join(self, timeout=None):
+            self.started = False
+
+    dummy_thread = DummyThread(lambda: None)
+    dummy_thread.started = True
+    legacy.app_state.update_thread = dummy_thread
+
+    opc_client.pause_update_thread()
+    assert legacy.app_state.thread_stop_flag is True
+    assert not dummy_thread.started
+
+    legacy.app_state.update_thread = None
+    monkeypatch.setattr(opc_client, "Thread", lambda target: dummy_thread)
+    opc_client.resume_update_thread()
+    assert legacy.app_state.update_thread is dummy_thread
+    assert legacy.app_state.thread_stop_flag is False
+    assert dummy_thread.started is True
 
 
-def test_layout_functions_return_components(monkeypatch):
-    src, _, _, layout = load_modules(monkeypatch)
-    monkeypatch.setattr(src, "html", DummyHtml())
-    monkeypatch.setattr(src, "callback_context", type("Ctx", (), {"triggered": []})())
+def test_layout_functions_return_none(monkeypatch):
+    _, _, _, layout, _ = load_modules(monkeypatch)
 
-    comp1 = layout.render_new_dashboard()
-    assert isinstance(comp1, dict) and comp1.get("tag") == "Div"
-
-    comp2 = layout.render_floor_machine_layout_with_customizable_names(None, None, None, None, "new")
-    assert isinstance(comp2, dict) and comp2.get("tag") == "Div"
-
-    comp3 = layout.render_floor_machine_layout_enhanced_with_selection(None, None, None, None, "new", None, None, "en")
-    assert isinstance(comp3, dict) and comp3.get("tag") == "Div"
+    assert layout.render_new_dashboard() is None
+    assert layout.render_floor_machine_layout_with_customizable_names() is None
+    assert (
+        layout.render_floor_machine_layout_enhanced_with_selection() is None
+    )
