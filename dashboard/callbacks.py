@@ -150,7 +150,7 @@ def register_callbacks() -> None:
         Output("current-dashboard", "data", allow_duplicate=True),
         Input("new-dashboard-btn", "n_clicks"),
         State("current-dashboard", "data"),
-        prevent_initial_call=False,
+        prevent_initial_call=True,
     )
     def manage_dashboard(n_clicks, current):
         if n_clicks is None:
