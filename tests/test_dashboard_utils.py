@@ -37,7 +37,7 @@ def load_modules(monkeypatch, src_patches=None):
     )
     legacy.opc_update_thread = lambda: None
     legacy.KNOWN_TAGS = {}
-    legacy.FAST_UPDATE_TAGS = []
+    legacy.FAST_UPDATE_TAGS = set()
     legacy.start_auto_reconnection = lambda: None
     legacy.delayed_startup_connect = lambda: None
     monkeypatch.setitem(sys.modules, "EnpresorOPCDataViewBeforeRestructure", legacy)
@@ -101,6 +101,12 @@ def load_modules(monkeypatch, src_patches=None):
     opc_client = load("dashboard.opc_client")
     layout = load("dashboard.layout")
     startup = load("dashboard.startup")
+
+    # Share constants with the legacy stub so helpers expecting the old module
+    # still see the same mappings.
+    legacy.KNOWN_TAGS = opc_client.KNOWN_TAGS
+    legacy.FAST_UPDATE_TAGS = opc_client.FAST_UPDATE_TAGS
+
     monkeypatch.setattr(opc_client, "app_state", legacy.app_state, raising=False)
     return legacy, settings, opc_client, layout, startup
 

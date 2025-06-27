@@ -52,9 +52,127 @@ def opc_update_thread() -> None:
 
     logger.info("OPC update thread stopped")
 
-# Known tags and fast update tags are empty by default
-KNOWN_TAGS: Dict[str, str] = {}
-FAST_UPDATE_TAGS: set[str] = set()
+# Known tags defined for the dashboard.  These mirror the mappings
+# from ``EnpresorOPCDataViewBeforeRestructureLegacy.py`` so the new
+# dashboard behaves the same as the legacy implementation.
+KNOWN_TAGS: Dict[str, str] = {
+    # Status Information
+    "Status.Info.Serial": "ns=2;s=Status.Info.Serial",
+    "Status.Info.Type": "ns=2;s=Status.Info.Type",
+    "Status.Info.PresetNumber": "ns=2;s=Status.Info.PresetNumber",
+    "Status.Info.PresetName": "ns=2;s=Status.Info.PresetName",
+
+    # Alive counter
+    "Alive": "ns=2;s=Alive",
+
+    # Production data
+    "Status.ColorSort.Sort1.Throughput.KgPerHour.Current": "ns=2;s=Status.ColorSort.Sort1.Throughput.KgPerHour.Current",
+    "Status.Production.Accepts": "ns=2;s=Status.Production.Accepts",
+    "Status.Production.Rejects": "ns=2;s=Status.Production.Rejects",
+    "Status.Production.Weight": "ns=2;s=Status.Production.Weight",
+    "Status.Production.Count": "ns=2;s=Status.Production.Count",
+    "Status.Production.Units": "ns=2;s=Status.Production.Units",
+
+    # Test weight settings tags
+    "Settings.ColorSort.TestWeightValue": "ns=2;s=Settings.ColorSort.TestWeightValue",
+    "Settings.ColorSort.TestWeightCount": "ns=2;s=Settings.ColorSort.TestWeightCount",
+
+    # Diagnostic
+    "Diagnostic.Counter": "ns=2;s=Diagnostic.Counter",
+
+    # Faults and warnings
+    "Status.Faults.GlobalFault": "ns=2;s=Status.Faults.GlobalFault",
+    "Status.Faults.GlobalWarning": "ns=2;s=Status.Faults.GlobalWarning",
+
+    # Feeders (1-4)
+    **{f"Status.Feeders.{i}IsRunning": f"ns=2;s=Status.Feeders.{i}IsRunning" for i in range(1, 5)},
+    **{f"Status.Feeders.{i}Rate": f"ns=2;s=Status.Feeders.{i}Rate" for i in range(1, 5)},
+
+    # Counter rates (1-12)
+    **{f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current": f"ns=2;s=Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)},
+
+    # Primary color sort settings (1-12)
+    **{f"Settings.ColorSort.Primary{i}.IsAssigned": f"ns=2;s=Settings.ColorSort.Primary{i}.IsAssigned" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.IsActive": f"ns=2;s=Settings.ColorSort.Primary{i}.IsActive" for i in range(1, 13)},
+    **{f"Settings.ColorSort.Primary{i}.Name": f"ns=2;s=Settings.ColorSort.Primary{i}.Name" for i in range(1, 13)},
+
+    # Environmental
+    "Status.Environmental.AirPressurePsi": "ns=2;s=Status.Environmental.AirPressurePsi",
+
+    # Objects per minute
+    "Status.ColorSort.Primary.ObjectPerMin": "ns=2;s=Status.ColorSort.Primary.ObjectPerMin",
+}
+
+# Tags that are updated on every cycle in live mode.  These are the tags
+# used throughout the dashboard callbacks for real time display.
+FAST_UPDATE_TAGS: set[str] = (
+    {
+        "Status.Info.Serial",
+        "Status.Info.Type",
+        "Status.Info.PresetNumber",
+        "Status.Info.PresetName",
+        "Status.Faults.GlobalFault",
+        "Status.Faults.GlobalWarning",
+        "Status.ColorSort.Sort1.Throughput.KgPerHour.Current",
+        "Status.ColorSort.Sort1.Total.Percentage.Current",
+        "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current",
+        "Status.ColorSort.Primary.ObjectPerMin",
+        "Settings.ColorSort.TestWeightValue",
+        "Settings.ColorSort.TestWeightCount",
+        "Diagnostic.Counter",
+        "Settings.ColorSort.Primary1.SampleImage",
+        "Settings.ColorSort.Primary2.SampleImage",
+        "Settings.ColorSort.Primary3.SampleImage",
+        "Settings.ColorSort.Primary4.SampleImage",
+        "Settings.ColorSort.Primary5.SampleImage",
+        "Settings.ColorSort.Primary6.SampleImage",
+        "Settings.ColorSort.Primary7.SampleImage",
+        "Settings.ColorSort.Primary8.SampleImage",
+        "Settings.ColorSort.Primary9.SampleImage",
+        "Settings.ColorSort.Primary10.SampleImage",
+        "Settings.ColorSort.Primary11.SampleImage",
+        "Settings.ColorSort.Primary12.SampleImage",
+        "Settings.ColorSort.Primary1.Name",
+        "Settings.ColorSort.Primary2.Name",
+        "Settings.ColorSort.Primary3.Name",
+        "Settings.ColorSort.Primary4.Name",
+        "Settings.ColorSort.Primary5.Name",
+        "Settings.ColorSort.Primary6.Name",
+        "Settings.ColorSort.Primary7.Name",
+        "Settings.ColorSort.Primary8.Name",
+        "Settings.ColorSort.Primary9.Name",
+        "Settings.ColorSort.Primary10.Name",
+        "Settings.ColorSort.Primary11.Name",
+        "Settings.ColorSort.Primary12.Name",
+        "Settings.ColorSort.Primary1.IsAssigned",
+        "Settings.ColorSort.Primary2.IsAssigned",
+        "Settings.ColorSort.Primary3.IsAssigned",
+        "Settings.ColorSort.Primary4.IsAssigned",
+        "Settings.ColorSort.Primary5.IsAssigned",
+        "Settings.ColorSort.Primary6.IsAssigned",
+        "Settings.ColorSort.Primary7.IsAssigned",
+        "Settings.ColorSort.Primary8.IsAssigned",
+        "Settings.ColorSort.Primary9.IsAssigned",
+        "Settings.ColorSort.Primary10.IsAssigned",
+        "Settings.ColorSort.Primary11.IsAssigned",
+        "Settings.ColorSort.Primary12.IsAssigned",
+        "Settings.ColorSort.Primary1.IsActive",
+        "Settings.ColorSort.Primary2.IsActive",
+        "Settings.ColorSort.Primary3.IsActive",
+        "Settings.ColorSort.Primary4.IsActive",
+        "Settings.ColorSort.Primary5.IsActive",
+        "Settings.ColorSort.Primary6.IsActive",
+        "Settings.ColorSort.Primary7.IsActive",
+        "Settings.ColorSort.Primary8.IsActive",
+        "Settings.ColorSort.Primary9.IsActive",
+        "Settings.ColorSort.Primary10.IsActive",
+        "Settings.ColorSort.Primary11.IsActive",
+        "Settings.ColorSort.Primary12.IsActive",
+    }
+    | {f"Status.Feeders.{i}IsRunning" for i in range(1, 5)}
+    | {f"Status.Feeders.{i}Rate" for i in range(1, 5)}
+    | {f"Status.ColorSort.Sort1.DefectCount{i}.Rate.Current" for i in range(1, 13)}
+)
 
 
 logger = logging.getLogger(__name__)
