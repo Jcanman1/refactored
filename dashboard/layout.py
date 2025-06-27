@@ -122,8 +122,16 @@ def render_dashboard_shell() -> Any:
 def render_new_dashboard() -> Any:
     """Return the floor/machine management view."""
 
+    floors_data, machines_data = load_layout()
+    if not floors_data:
+        floors_data = {"floors": [{"id": 1, "name": "1st Floor"}], "selected_floor": "all"}
+    if not machines_data:
+        machines_data = {"machines": [], "next_machine_id": 1}
+
     return html.Div(
         [
+            dcc.Store(id="floors-data", data=floors_data),
+            dcc.Store(id="machines-data", data=machines_data),
             html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
             html.Div(
                 [
@@ -836,6 +844,7 @@ delete_confirmation_modal = dbc.Modal(
 
 
 __all__ = [
+    "render_dashboard_shell",
     "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_main_dashboard",

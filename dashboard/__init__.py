@@ -45,6 +45,7 @@ from .settings import (
 )
 from .layout import (
 
+    render_dashboard_shell,
     render_dashboard_wrapper,
 
     render_new_dashboard,
@@ -88,6 +89,7 @@ __all__ = [
     "capacity_unit_label",
     "load_saved_image",
     "save_uploaded_image",
+    "render_dashboard_shell",
     "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_floor_machine_layout_with_customizable_names",
