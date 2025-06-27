@@ -276,9 +276,17 @@ def render_main_dashboard() -> Any:
 def render_dashboard_wrapper() -> Any:
     """Return a wrapper containing dashboard switch controls."""
 
+    floors_data, machines_data = load_layout()
+    if not floors_data:
+        floors_data = {"floors": [{"id": 1, "name": "1st Floor"}], "selected_floor": "all"}
+    if not machines_data:
+        machines_data = {"machines": [], "next_machine_id": 1}
+
     return html.Div(
         [
             dcc.Store(id="current-dashboard", data="new"),
+            dcc.Store(id="floors-data", data=floors_data),
+            dcc.Store(id="machines-data", data=machines_data),
             dbc.Button("Toggle Dashboard", id="new-dashboard-btn"),
             html.Div(id="dashboard-content", children=render_new_dashboard()),
         ]
