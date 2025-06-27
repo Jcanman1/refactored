@@ -31,8 +31,22 @@ Run the dashboard application:
 python run_dashboard.py
 ```
 
-To embed the layout in another Dash app import `render_dashboard_shell` from
-the `dashboard` package and assign it to `app.layout`.
+To embed the layout in another Dash application, import `render_dashboard_shell`
+from the `dashboard` package **and assign the return value to `app.layout`**.
+This shell initializes the required `dcc.Store` components such as
+`floors-data` and `machines-data`. Using `render_main_dashboard()` directly only
+returns the visible grid and omits these stores, which will cause callback
+errors.
+
+Example:
+
+```python
+from dash import Dash
+from dashboard.layout import render_dashboard_shell
+
+app = Dash(__name__)
+app.layout = render_dashboard_shell()
+```
 
 Images used by the dashboard should be placed in an `assets/` directory that
 resides next to the script so Dash can serve them automatically.
