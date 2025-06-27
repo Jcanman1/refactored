@@ -174,6 +174,18 @@ def test_new_floor_is_selected(monkeypatch):
     result = add_floor(1, floors, machines)
     assert result["selected_floor"] == 2
     assert any(f.get("id") == 2 for f in result["floors"])
+    name = next((f["name"] for f in result["floors"] if f["id"] == 2), "")
+    assert name == "2nd Floor"
+
+
+def test_ordinal_suffix(monkeypatch):
+    callbacks, _ = load_callbacks(monkeypatch)
+    assert callbacks._ordinal_suffix(1) == "1st"
+    assert callbacks._ordinal_suffix(2) == "2nd"
+    assert callbacks._ordinal_suffix(3) == "3rd"
+    assert callbacks._ordinal_suffix(4) == "4th"
+    assert callbacks._ordinal_suffix(11) == "11th"
+    assert callbacks._ordinal_suffix(21) == "21st"
 
 
 def test_machine_filter_by_floor(monkeypatch):
