@@ -400,7 +400,26 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
 
     main = dbc.Col(html.Div(right_content), width=9)
 
-    return dbc.Row([sidebar, main])
+    layout_row = dbc.Row([sidebar, main])
+
+    hidden_sections = html.Div(
+        [
+            html.Div(id="section-1-1", children=[], style={"display": "none"}),
+            html.Div(id="section-1-2", children=[], style={"display": "none"}),
+            html.Div(id="section-2", children=[], style={"display": "none"}),
+            html.Div(id="section-3-1", children=[], style={"display": "none"}),
+            html.Div(id="section-3-2", children=[], style={"display": "none"}),
+            html.Div(id="section-4", children=[], style={"display": "none"}),
+            html.Div(id="section-5-1", children=[], style={"display": "none"}),
+            html.Div(id="section-5-2", children=[], style={"display": "none"}),
+            html.Div(id="section-6-1", children=[], style={"display": "none"}),
+            html.Div(id="section-6-2", children=[], style={"display": "none"}),
+            html.Div(id="section-7-1", children=[], style={"display": "none"}),
+            html.Div(id="section-7-2", children=[], style={"display": "none"}),
+        ]
+    )
+
+    return html.Div([layout_row, hidden_sections])
 
 
 def render_floor_machine_layout_enhanced_with_selection() -> Any:
