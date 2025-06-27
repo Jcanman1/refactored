@@ -4,6 +4,7 @@ from types import ModuleType
 from pathlib import Path
 import inspect
 from types import SimpleNamespace
+import json
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -153,7 +154,8 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
     select = registered["handle_floor_selection"]
 
     for fid in [1, 2, 3]:
-        ctx = SimpleNamespace(triggered_id={"type": "floor-tile", "index": fid})
+        prop = json.dumps({"type": "floor-tile", "index": fid}) + ".n_clicks"
+        ctx = SimpleNamespace(triggered=[{"prop_id": prop}], triggered_id=None)
         monkeypatch.setattr(callbacks, "callback_context", ctx)
         data = {"selected_floor": "all"}
         result = select([], [], data)
