@@ -147,27 +147,133 @@ def register_callbacks() -> None:
 
     @_dash_callback(
         Output("floors-data", "data", allow_duplicate=True),
-        [
-            Input("floor-tile-1", "n_clicks"),
-            Input("floor-tile-2", "n_clicks"),
-            Input("floor-tile-3", "n_clicks"),
-            Input("floor-tile-4", "n_clicks"),
-            Input("floor-tile-5", "n_clicks"),
-        ],
+        Input({"type": "floor-tile", "index": ALL}, "n_clicks"),
+        State({"type": "floor-tile", "index": ALL}, "id"),
         State("floors-data", "data"),
         prevent_initial_call=True,
     )
-    def handle_floor_selection(n1, n2, n3, n4, n5, floors_data):
+    def handle_floor_selection(clicks, ids, floors_data):
         """Switch the selected floor when a tile is clicked."""
         ctx = callback_context
         if not ctx.triggered:
             return no_update
-        trigger = ctx.triggered[0]["prop_id"]
-        if "floor-tile-" in trigger:
-            floor_id = int(trigger.split("floor-tile-")[1].split(".")[0])
-            floors_data["selected_floor"] = floor_id
-            return floors_data
+        for i, c in enumerate(clicks):
+            if c and i < len(ids):
+                fid = ids[i]["index"]
+                floors_data["selected_floor"] = fid
+                return floors_data
         return no_update
+
+    @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
+        Input("add-floor-btn", "n_clicks"),
+        State("floors-data", "data"),
+        State("machines-data", "data"),
+        prevent_initial_call=True,
+    )
+    def add_floor_cb(n_clicks, floors_data, machines_data):
+        if not n_clicks:
+            return no_update
+        floors = floors_data.get("floors", [])
+        next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
+        floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
+        floors_data["floors"] = floors
+        _save_floor_machine_data(floors_data, machines_data or {})
+        return floors_data
+
+    @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
+        Input({"type": "edit-floor-name-btn", "index": ALL}, "n_clicks"),
+        State({"type": "edit-floor-name-btn", "index": ALL}, "id"),
+        State("floors-data", "data"),
+        prevent_initial_call=True,
+    )
+    def edit_floor_cb(clicks, ids, floors_data):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        for i, c in enumerate(clicks):
+            if c and i < len(ids):
+                fid = ids[i]["index"]
+                for f in floors_data.get("floors", []):
+                    if f.get("id") == fid:
+                        f["editing"] = True
+                        break
+                return floors_data
+        return no_update
+
+    @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
+        Input({"type": "save-floor-name-btn", "index": ALL}, "n_clicks"),
+        State({"type": "save-floor-name-btn", "index": ALL}, "id"),
+        State({"type": "floor-name-input", "index": ALL}, "value"),
+        State("floors-data", "data"),
+        State("machines-data", "data"),
+        prevent_initial_call=True,
+    )
+    def save_floor_name_cb(clicks, ids, values, floors_data, machines_data):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        for i, c in enumerate(clicks):
+            if c and i < len(ids) and i < len(values):
+                fid = ids[i]["index"]
+                new_name = values[i]
+                for f in floors_data.get("floors", []):
+                    if f.get("id") == fid:
+                        f["name"] = new_name
+                        f["editing"] = False
+                        break
+                _save_floor_machine_data(floors_data, machines_data or {})
+                return floors_data
+        return no_update
+
+    @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
+        Input({"type": "cancel-floor-name-btn", "index": ALL}, "n_clicks"),
+        State({"type": "cancel-floor-name-btn", "index": ALL}, "id"),
+        State("floors-data", "data"),
+        prevent_initial_call=True,
+    )
+    def cancel_floor_name_cb(clicks, ids, floors_data):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        for i, c in enumerate(clicks):
+            if c and i < len(ids):
+                fid = ids[i]["index"]
+                for f in floors_data.get("floors", []):
+                    if f.get("id") == fid:
+                        f["editing"] = False
+                        break
+                return floors_data
+        return no_update
+
+    @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
+        Output("machines-data", "data", allow_duplicate=True),
+        Input({"type": "delete-floor-btn", "index": ALL}, "n_clicks"),
+        State({"type": "delete-floor-btn", "index": ALL}, "id"),
+        State("floors-data", "data"),
+        State("machines-data", "data"),
+        prevent_initial_call=True,
+    )
+    def delete_floor_cb(clicks, ids, floors_data, machines_data):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update, no_update
+        for i, c in enumerate(clicks):
+            if c and i < len(ids):
+                fid = ids[i]["index"]
+                floors = [f for f in floors_data.get("floors", []) if f.get("id") != fid]
+                machines = [m for m in machines_data.get("machines", []) if m.get("floor_id") != fid]
+                floors_data["floors"] = floors
+                machines_data["machines"] = machines
+                if floors_data.get("selected_floor") == fid:
+                    floors_data["selected_floor"] = "all"
+                _save_floor_machine_data(floors_data, machines_data)
+                return floors_data, machines_data
+        return no_update, no_update
 
     @_dash_callback(
         Output("current-dashboard", "data", allow_duplicate=True),

@@ -1,0 +1,92 @@
+/* Legacy dashboard styling extracted from the original application */
+.machine-card-connected {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+.machine-card-disconnected {
+    background-color: #d3d3d3 !important;
+    color: black !important;
+    border-color: #a9a9a9 !important;
+}
+
+.machine-card-active-connected {
+    background-color: #28a745 !important;
+    color: white !important;
+    border: 3px solid #007bff !important;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3) !important;
+}
+
+.machine-card-active-disconnected {
+    background-color: #d3d3d3 !important;
+    color: black !important;
+    border: 3px solid #007bff !important;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3) !important;
+}
+
+.delete-floor-btn {
+    width: 1.6875rem;
+    height: 90%;
+    border-radius: 10%;
+    padding: 0;
+}
+
+.delete-floor-btn-inline {
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: 50%;
+    margin-right: 0.3125rem;
+}
+
+.edit-floor-name-btn {
+    font-size: 1.5rem;
+    padding: 0.3rem;
+}
+
+.floor-header-text {
+    font-size: clamp(2rem, 8vw, 3.8rem);
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+}
+
+.floor-tile-btn {
+    font-size: clamp(0.9rem, 4vw, 1.25rem);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+}
+
+.machine-card-dropdown {
+    width: 100%;
+}
+
+.production-data {
+    font-size: 2.6rem;
+    font-weight: bold;
+    font-family: Monaco, Consolas, 'Courier New', monospace;
+}
+
+@media (max-width: 576px) {
+    h5 { font-size: 0.9rem !important; }
+    h6 { font-size: 0.8rem !important; }
+    .card-body { padding: 0.25rem; }
+    .delete-floor-btn { width: 1.125rem; height: 90%; font-size: 0.7rem; padding: 0; }
+    .delete-floor-btn-inline { width: 1.25rem; height: 1.25rem; font-size: 0.7rem; }
+    .edit-floor-name-btn { font-size: 1rem; padding: 0.2rem; }
+    .floor-header-text { font-size: 2rem !important; width: 100%; flex: 1; min-width: 0; }
+    .floor-tile-btn { font-size: 0.9rem !important; width: 100%; flex: 1; min-width: 0; }
+    .machine-info-container { flex-direction: row; flex-wrap: wrap; height: auto !important; }
+    #section-3-2 > div { height: auto !important; }
+    .machine-info-logo { flex: 0 0 45%; max-width: 180px; }
+    .production-data { font-size: 1.6rem !important; }
+    .machine-card-dropdown { font-size: 0.9rem !important; }
+}
