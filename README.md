@@ -31,6 +31,9 @@ Run the dashboard application:
 python run_dashboard.py
 ```
 
+To embed the layout in another Dash app import `render_dashboard_shell` from
+the `dashboard` package and assign it to `app.layout`.
+
 Images used by the dashboard should be placed in an `assets/` directory that
 resides next to the script so Dash can serve them automatically.
 The provided `EnpresorMachine.png` image is included in this `assets/` folder.
