@@ -147,7 +147,7 @@ def register_callbacks() -> None:
         return render_main_dashboard()
 
     @_dash_callback(
-        Output("current-dashboard", "data"),
+        Output("current-dashboard", "data", allow_duplicate=True),
         Input("new-dashboard-btn", "n_clicks"),
         State("current-dashboard", "data"),
         prevent_initial_call=False,
