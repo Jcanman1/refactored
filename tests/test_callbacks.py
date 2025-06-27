@@ -245,3 +245,26 @@ def test_add_machine_cb_does_not_mutate_input(monkeypatch):
     add_machine(1, machines, floors)
 
     assert machines == original
+
+
+def test_add_floor_add_machine_from_all(monkeypatch):
+    """New floor becomes selected and machine cards filter to it."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": "all"}
+    machines = {"machines": []}
+
+    new_floors = add_floor(1, floors, machines)
+    machines = add_machine(1, machines, new_floors)
+
+    assert new_floors["selected_floor"] == 2
+
+    cards = render_cards(new_floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
+    assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
