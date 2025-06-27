@@ -94,6 +94,11 @@ def render_dashboard_shell() -> Any:
             dcc.Store(id="floors-data", data=floors_data),
             dcc.Store(id="machines-data", data=machines_data),
             dcc.Store(id="active-machine-store", data={"machine_id": None}),
+            dcc.Interval(id="status-update-interval", interval=1000, n_intervals=0),
+            dcc.Store(id="production-data-store"),
+            dcc.Store(id="weight-preference-store", data=load_weight_preference()),
+            dcc.Store(id="language-preference-store", data=load_language_preference()),
+            dcc.Store(id="additional-image-store", data=load_saved_image()),
             header,
             connection_controls,
             html.Div(id="dashboard-content"),
@@ -108,24 +113,6 @@ def render_new_dashboard() -> Any:
 
     return html.Div(
         [
-            dcc.Interval(
-                id="status-update-interval",
-                interval=1000,
-                n_intervals=0,
-            ),
-            dcc.Store(id="production-data-store"),
-            dcc.Store(
-                id="weight-preference-store",
-                data=load_weight_preference(),
-            ),
-            dcc.Store(
-                id="language-preference-store",
-                data=load_language_preference(),
-            ),
-            dcc.Store(
-                id="additional-image-store",
-                data=load_saved_image(),
-            ),
             grid,
         ]
     )

@@ -201,7 +201,7 @@ def test_layout_functions_return_components(monkeypatch):
 
 def test_render_new_dashboard_has_weight_store(monkeypatch):
     _, _, _, layout, _ = load_modules(monkeypatch)
-    comp = layout.render_new_dashboard()
+    comp = layout.render_dashboard_shell()
 
     def find_weight_store(node):
         if getattr(node, "props", {}).get("id") == "weight-preference-store":
