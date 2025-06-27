@@ -309,3 +309,4 @@ def test_add_machine_does_not_change_selected_floor(monkeypatch):
     cards = render_cards(floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
+
