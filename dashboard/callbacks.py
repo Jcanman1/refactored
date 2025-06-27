@@ -242,7 +242,6 @@ def register_callbacks() -> None:
         Input("active-machine-store", "data"),
         Input("app-mode", "data"),
         Input("language-preference-store", "data"),
-        prevent_initial_call=True,
     )
     def render_floor_machine_layout_cb(
         machines_data,
