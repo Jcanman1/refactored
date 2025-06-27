@@ -1,5 +1,9 @@
 
-"""User settings and preference helpers."""
+"""User settings and preference helpers.
+
+Includes helpers for threshold and email configuration used when
+triggering alarm notifications.
+"""
 
 import json
 import logging
@@ -12,6 +16,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DISPLAY_SETTINGS_PATH = ROOT_DIR / "display_settings.json"
 IP_ADDRESSES_PATH = ROOT_DIR / "ip_addresses.json"
 EMAIL_SETTINGS_PATH = ROOT_DIR / "email_settings.json"
+# Contains per-sensitivity limits along with email threshold preferences
 THRESHOLD_SETTINGS_PATH = ROOT_DIR / "threshold_settings.json"
 
 DEFAULT_EMAIL_SETTINGS = {
@@ -288,7 +293,13 @@ def save_email_settings(settings: dict, path: Path = EMAIL_SETTINGS_PATH) -> boo
 
 
 def load_threshold_settings(path: Path = THRESHOLD_SETTINGS_PATH):
-    """Load threshold settings from ``path``."""
+    """Load threshold settings from ``path``.
+
+    The returned dictionary includes per-sensitivity limits as well as
+    email alert fields ``email_enabled``,
+    ``email_address`` and ``email_minutes`` controlling when threshold
+    notifications are sent.
+    """
     try:
         if path.exists():
             with open(path, "r") as f:
