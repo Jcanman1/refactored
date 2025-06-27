@@ -215,3 +215,33 @@ def test_add_floor_then_machine_filters(monkeypatch):
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
     assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
+
+
+def test_add_floor_cb_does_not_mutate_input(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+    original = json.loads(json.dumps(floors))
+
+    add_floor(1, floors, machines)
+
+    assert floors == original
+
+
+def test_add_machine_cb_does_not_mutate_input(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_machine = registered["add_machine_cb"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+    original = json.loads(json.dumps(machines))
+
+    add_machine(1, machines, floors)
+
+    assert machines == original
