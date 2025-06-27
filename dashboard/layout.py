@@ -4,7 +4,11 @@ from typing import Any
 
 from .machine_layout import load_layout
 
-from .settings import load_language_preference, load_weight_preference
+from .settings import (
+    load_language_preference,
+    load_weight_preference,
+    load_ip_addresses,
+)
 from i18n import tr
 from .images import load_saved_image
 
@@ -96,6 +100,7 @@ def render_dashboard_shell() -> Any:
             dcc.Store(id="active-machine-store", data={"machine_id": None}),
             dcc.Interval(id="status-update-interval", interval=1000, n_intervals=0),
             dcc.Store(id="production-data-store"),
+            dcc.Store(id="ip-addresses-store", data=load_ip_addresses()),
             dcc.Store(id="weight-preference-store", data=load_weight_preference()),
             dcc.Store(id="language-preference-store", data=load_language_preference()),
             dcc.Store(id="additional-image-store", data=load_saved_image()),
