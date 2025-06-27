@@ -316,3 +316,30 @@ def test_floor_layout_has_hidden_sections(monkeypatch):
 
     assert "section-1-1" in ids
     assert "section-7-2" in ids
+
+
+def test_floor_layout_reflects_passed_data(monkeypatch):
+    """Layout should use provided floor and machine data immediately."""
+    _, _, _, layout, _ = load_modules(monkeypatch)
+
+    floors = {"floors": [{"id": 2, "name": "F2", "editing": True}], "selected_floor": 2}
+    machines = {"machines": []}
+
+    comp = layout.render_floor_machine_layout_with_customizable_names(
+        floors_data=floors,
+        machines_data=machines,
+    )
+
+    def find(node, target):
+        ident = getattr(node, "props", {}).get("id")
+        if ident == target:
+            return True
+        children = getattr(node, "children", []) or []
+        if len(children) == 1 and isinstance(children[0], list):
+            children = children[0]
+        for child in children:
+            if find(child, target):
+                return True
+        return False
+
+    assert find(comp, {"type": "floor-name-input", "index": 2})

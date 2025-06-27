@@ -328,10 +328,25 @@ def render_dashboard_wrapper() -> Any:
     )
 
 
-def render_floor_machine_layout_with_customizable_names() -> Any:
-    """Return a layout for managing floors and machines with editing controls."""
+def render_floor_machine_layout_with_customizable_names(
+    floors_data: dict | None = None,
+    machines_data: dict | None = None,
+) -> Any:
+    """Return a layout for managing floors and machines with editing controls.
 
-    floors_data, machines_data = load_layout()
+    Parameters ``floors_data`` and ``machines_data`` default to ``None`` so the
+    layout can load saved values from disk when not explicitly provided.  This
+    allows callbacks to pass the in-memory store data directly for immediate
+    updates without persisting to disk first.
+    """
+
+    if floors_data is None or machines_data is None:
+        loaded_floors, loaded_machines = load_layout()
+        if floors_data is None:
+            floors_data = loaded_floors
+        if machines_data is None:
+            machines_data = loaded_machines
+
     if not floors_data:
         floors_data = {"floors": [{"id": 1, "name": "1st Floor"}], "selected_floor": "all"}
     if not machines_data:
@@ -537,11 +552,16 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
     return html.Div([layout_row, hidden_sections])
 
 
-def render_floor_machine_layout_enhanced_with_selection() -> Any:
+def render_floor_machine_layout_enhanced_with_selection(
+    floors_data: dict | None = None,
+    machines_data: dict | None = None,
+) -> Any:
     """Return floor layout including machine selection capability."""
 
     # In this simplified refactor the enhanced layout reuses the base layout.
-    return render_floor_machine_layout_with_customizable_names()
+    return render_floor_machine_layout_with_customizable_names(
+        floors_data=floors_data, machines_data=machines_data
+    )
 
 
 def build_machine_card(machine: dict, ip_options: list, *, active: bool = False, lang: str | None = None) -> Any:
