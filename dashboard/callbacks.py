@@ -90,6 +90,7 @@ from .settings import (
     capacity_unit_label,
     load_threshold_settings,
     load_email_settings,
+
 )
 from .layout import (
     render_new_dashboard,
@@ -701,6 +702,8 @@ def register_callbacks() -> None:
 
         if not n_clicks:
             raise PreventUpdate
+        if generate_report is None:
+            raise PreventUpdate
 
         data = generate_report.fetch_last_24h_metrics()
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -739,6 +742,61 @@ def register_callbacks() -> None:
         ):
             return not is_open
         if trigger == "close-settings" and close_clicks:
+            return False
+        return is_open
+
+    @_dash_callback(
+        Output("threshold-modal", "is_open"),
+        [
+            Input({"type": "open-threshold", "index": ALL}, "n_clicks"),
+            Input("close-threshold-settings", "n_clicks"),
+            Input("save-threshold-settings", "n_clicks"),
+        ],
+        [
+            State("threshold-modal", "is_open"),
+            State({"type": "threshold-min-enabled", "index": ALL}, "value"),
+            State({"type": "threshold-max-enabled", "index": ALL}, "value"),
+            State({"type": "threshold-min-value", "index": ALL}, "value"),
+            State({"type": "threshold-max-value", "index": ALL}, "value"),
+            State("threshold-email-address", "value"),
+            State("threshold-email-minutes", "value"),
+            State("threshold-email-enabled", "value"),
+        ],
+        prevent_initial_call=True,
+    )
+    def toggle_threshold_modal(
+        open_clicks,
+        close_clicks,
+        save_clicks,
+        is_open,
+        min_enabled,
+        max_enabled,
+        min_values,
+        max_values,
+        email_address,
+        email_minutes,
+        email_enabled,
+    ):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if "open-threshold" in trigger and any(open_clicks):
+            return True
+        if trigger == "close-threshold-settings" and close_clicks:
+            return False
+        if trigger == "save-threshold-settings" and save_clicks:
+            for i in range(12):
+                threshold_settings[i + 1] = {
+                    "min_enabled": bool(min_enabled[i]),
+                    "max_enabled": bool(max_enabled[i]),
+                    "min_value": float(min_values[i] or 0),
+                    "max_value": float(max_values[i] or 0),
+                }
+            threshold_settings["email_enabled"] = bool(email_enabled)
+            threshold_settings["email_address"] = email_address or ""
+            threshold_settings["email_minutes"] = int(email_minutes or 2)
+            save_threshold_settings(threshold_settings)
             return False
         return is_open
 
