@@ -152,8 +152,6 @@ def render_new_dashboard() -> Any:
 
     return html.Div(
         [
-            dcc.Store(id="floors-data", data=floors_data),
-            dcc.Store(id="machines-data", data=machines_data),
             html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
             html.Div(
                 [
@@ -354,8 +352,6 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
     }
 
     left_sidebar_buttons = []
-    left_sidebar_buttons.append(dcc.Store(id="floors-data", data=floors_data))
-    left_sidebar_buttons.append(dcc.Store(id="machines-data", data=machines_data))
     left_sidebar_buttons.append(
         html.Div(
             html.Img(src="/assets/EnpresorMachine.png", style={"maxWidth": "100%", "maxHeight": "120px", "objectFit": "contain", "margin": "0 auto", "display": "block"}),
