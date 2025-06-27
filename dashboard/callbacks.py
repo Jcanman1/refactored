@@ -75,6 +75,7 @@ from .settings import (
     capacity_unit_label,
 )
 from i18n import tr
+from .layout import render_new_dashboard, render_main_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,26 @@ def _generate_csv_string(tags: dict) -> str:
 
 def register_callbacks() -> None:
     """Register core callbacks with the Dash app."""
+
+    @_dash_callback(
+        Output("dashboard-content", "children"),
+        Input("current-dashboard", "data"),
+    )
+    def render_dashboard(which):
+        if which == "new":
+            return render_new_dashboard()
+        return render_main_dashboard()
+
+    @_dash_callback(
+        Output("current-dashboard", "data"),
+        Input("new-dashboard-btn", "n_clicks"),
+        State("current-dashboard", "data"),
+        prevent_initial_call=False,
+    )
+    def manage_dashboard(n_clicks, current):
+        if n_clicks is None:
+            return "new"
+        return "new" if current == "main" else "main"
 
     @_dash_callback(
         Output("section-1-1", "children"),
