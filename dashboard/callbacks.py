@@ -365,19 +365,24 @@ def register_callbacks() -> None:
         if isinstance(trigger, dict) and trigger.get("type") == "floor-tile":
             fid = trigger.get("index")
         elif ctx.triggered:
-            prop = ctx.triggered[0]["prop_id"]
-            if "floor-tile" in prop:
+            info = ctx.triggered[0]
+            if not info.get("value"):
+                return no_update
+            prop = info.get("prop_id")
+            if prop and "floor-tile" in prop:
                 import json
                 import re
 
                 match = re.search(r"\{[^}]+\}", prop)
                 if match:
                     try:
-                        info = json.loads(match.group())
-                        fid = info.get("index")
+                        data = json.loads(match.group())
+                        fid = data.get("index")
                     except Exception:
-                        pass
-
+                        return no_update
+            else:
+                return no_update
+        
         if fid is None:
             return no_update
 

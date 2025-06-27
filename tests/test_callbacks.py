@@ -157,7 +157,7 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
 
     for fid in [1, 2, 3]:
         prop = json.dumps({"type": "floor-tile", "index": fid}) + ".n_clicks"
-        ctx = SimpleNamespace(triggered=[{"prop_id": prop}], triggered_id=None)
+        ctx = SimpleNamespace(triggered=[{"prop_id": prop, "value": 1}], triggered_id=None)
         monkeypatch.setattr(callbacks, "callback_context", ctx)
         data = {"selected_floor": "all"}
         result = select([], [], data)
@@ -282,3 +282,80 @@ def test_add_floor_add_machine_from_all(monkeypatch):
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
     assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
+
+
+def test_add_machine_does_not_change_selected_floor(monkeypatch):
+    """Adding a machine should not modify the selected floor."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    machines = add_machine(1, machines, floors)
+
+    floors = add_floor(1, floors, machines)
+    assert floors["selected_floor"] == 2
+
+    machines = add_machine(1, machines, floors)
+
+    assert floors["selected_floor"] == 2
+    assert machines["machines"][-1]["floor_id"] == 2
+
+    cards = render_cards(floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
+
+
+def test_add_floor_then_add_machine_keeps_new_selection(monkeypatch):
+    """Machines added after creating a floor respect the new selection."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    machines = add_machine(1, machines, floors)
+    assert machines["machines"][0]["floor_id"] == 1
+
+    floors = add_floor(1, floors, machines)
+    assert floors["selected_floor"] == 2
+
+    machines = add_machine(1, machines, floors)
+
+    assert floors["selected_floor"] == 2
+    assert machines["machines"][-1]["floor_id"] == 2
+
+    cards = render_cards(floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
+
+
+def test_new_floor_layout_is_blank(monkeypatch):
+    """Adding a floor selects it and shows no machines."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    new_floors = add_floor(1, floors, machines)
+    assert new_floors["selected_floor"] == 2
+
+    cards = render_cards(new_floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    if isinstance(children, (list, tuple)):
+        assert children[0] == "No machines configured"
+    else:
+        assert children == "No machines configured"
