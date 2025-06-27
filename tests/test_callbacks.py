@@ -1,0 +1,68 @@
+import importlib.util
+import sys
+from types import ModuleType
+from pathlib import Path
+import inspect
+from types import SimpleNamespace
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tests.test_dashboard_utils import load_modules
+
+
+def load_callbacks(monkeypatch):
+    # load core modules and prepare stubs
+    legacy, settings, opc_client, layout, startup = load_modules(monkeypatch)
+
+    # load dashboard.app and patch callback decorator
+    root = Path(__file__).resolve().parents[1] / "dashboard"
+
+    def load(name):
+        path = root / f"{name.split('.')[-1]}.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    app_mod = load("dashboard.app")
+    sys.modules["dashboard.app"] = app_mod
+    registered = {}
+
+    def fake_callback(*args, **kwargs):
+        def wrapper(func):
+            registered[func.__name__] = func
+            return func
+        return wrapper
+
+    setattr(app_mod.app, "callback", fake_callback)
+
+    callbacks_spec = importlib.util.spec_from_file_location(
+        "dashboard.callbacks", root / "callbacks.py"
+    )
+    callbacks = importlib.util.module_from_spec(callbacks_spec)
+    callbacks_spec.loader.exec_module(callbacks)
+
+    return callbacks, registered
+
+
+def test_section_callbacks_exist(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+
+    expected = {
+        "update_section_2",
+        "update_section_3_1",
+        "update_section_4",
+        "update_section_5_1",
+        "update_section_6_1",
+        "update_section_7_1",
+    }
+
+    assert expected.issubset(set(registered))
+
+    for name in expected:
+        func = registered[name]
+        params = inspect.signature(func).parameters
+        args = [None] * len(params)
+        result = func(*args)
+        comp = result[0] if isinstance(result, tuple) else result
+        assert comp is not None

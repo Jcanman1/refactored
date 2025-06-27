@@ -100,6 +100,8 @@ previous_counter_values = [0] * 12
 active_alarms: list[str] = []
 machine_control_log: list[dict] = []
 threshold_settings = load_threshold_settings() or {}
+production_history: list[float] = []
+counter_history = {i: [] for i in range(1, 13)}
 
 
 def _save_floor_machine_data(floors_data: dict, machines_data: dict) -> bool:
@@ -608,6 +610,224 @@ def register_callbacks() -> None:
             html.Div(f"{tr('serial_number_label', lang)} {serial}"),
             html.Div(f"{tr('model_label', lang)} {model}"),
             html.Div(f"Status: {status_text}"),
+        ])
+
+    @_dash_callback(
+        Output("section-2", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_2(n, lang):
+        """Display preset, status and feeder information."""
+        lang = lang or "en"
+        preset_num_tag = "Status.Info.PresetNumber"
+        preset_name_tag = "Status.Info.PresetName"
+        fault_tag = "Status.Faults.GlobalFault"
+        warn_tag = "Status.Faults.GlobalWarning"
+
+        preset = "N/A"
+        if app_state.connected:
+            num = app_state.tags.get(preset_num_tag, {}).get("data")
+            name = app_state.tags.get(preset_name_tag, {}).get("data")
+            num_val = getattr(num, "latest_value", None)
+            name_val = getattr(name, "latest_value", None)
+            parts = []
+            if num_val is not None:
+                parts.append(str(num_val))
+            if name_val:
+                parts.append(str(name_val))
+            if parts:
+                preset = " ".join(parts)
+
+        fault = False
+        warning = False
+        if app_state.connected:
+            if fault_tag in app_state.tags:
+                val = app_state.tags[fault_tag]["data"].latest_value
+                fault = bool(val)
+            if warn_tag in app_state.tags:
+                val = app_state.tags[warn_tag]["data"].latest_value
+                warning = bool(val)
+
+        status_text = tr("good_status", lang)
+        status_style = {"backgroundColor": "#28a745", "color": "white"}
+        if fault:
+            status_text = tr("fault_status", lang)
+            status_style = {"backgroundColor": "#dc3545", "color": "white"}
+        elif warning:
+            status_text = tr("warning_status", lang)
+            status_style = {"backgroundColor": "#ffc107", "color": "black"}
+
+        running = False
+        for i in range(1, 5):
+            tag = f"Status.Feeders.{i}IsRunning"
+            if app_state.connected and tag in app_state.tags:
+                if bool(app_state.tags[tag]["data"].latest_value):
+                    running = True
+                    break
+        feeder_text = tr("running_state", lang) if running else tr("stopped_state", lang)
+        feeder_style = {"backgroundColor": "#28a745" if running else "#6c757d", "color": "white"}
+
+        boxes = [
+            html.Div(preset, className="mb-1 p-1", style={"backgroundColor": "#28a745", "color": "white"}),
+            html.Div(status_text, className="mb-1 p-1", style=status_style),
+            html.Div(feeder_text, className="mb-2 p-1", style=feeder_style),
+        ]
+
+        rate_boxes = []
+        for i in range(1, 5):
+            rate = 0
+            tag = f"Status.Feeders.{i}Rate"
+            if app_state.connected and tag in app_state.tags:
+                val = app_state.tags[tag]["data"].latest_value
+                rate = val if val is not None else 0
+            rate_boxes.append(
+                html.Div(
+                    f"F{i}: {rate}",
+                    className="me-1 p-1",
+                    style={"backgroundColor": "#28a745" if running else "#6c757d", "color": "white"},
+                )
+            )
+
+        return html.Div([
+            html.H6(tr("machine_status_title", lang)),
+            *boxes,
+            html.Div(rate_boxes, className="d-flex"),
+        ])
+
+    @_dash_callback(
+        Output("section-3-1", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("additional-image-store", "data"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_3_1(n, img_data, lang):
+        """Show corporate image with a load button."""
+        lang = lang or "en"
+        image_src = None
+        if isinstance(img_data, dict):
+            image_src = img_data.get("image")
+        if image_src:
+            image = html.Img(src=image_src, style={"maxWidth": "100%", "maxHeight": "130px", "objectFit": "contain", "display": "block", "margin": "0 auto"})
+        else:
+            image = html.Div("No custom image loaded", className="text-muted text-center", style={"height": "130px", "display": "flex", "alignItems": "center", "justifyContent": "center"})
+
+        return html.Div([
+            dbc.Row([
+                dbc.Col(html.H6(tr("corporate_logo_title", lang)), width=8),
+                dbc.Col(dbc.Button(tr("load_image_button", lang), id="load-additional-image", size="sm", color="primary"), width=4),
+            ], className="mb-2"),
+            image,
+        ])
+
+    @_dash_callback(
+        Output("section-4", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_4(n, lang):
+        """List sensitivity names."""
+        lang = lang or "en"
+        items = []
+        for i in range(1, 13):
+            name = f"Primary {i}"
+            tag = f"Settings.ColorSort.Primary{i}.Name"
+            if app_state.connected and tag in app_state.tags:
+                val = app_state.tags[tag]["data"].latest_value
+                if val:
+                    name = val
+            items.append(html.Li(f"{i}. {name}", className="mb-1"))
+
+        return html.Div([
+            html.H6(tr("sensitivities_title", lang)),
+            html.Ul(items, className="mb-0"),
+        ])
+
+    @_dash_callback(
+        Output("section-5-1", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_5_1(n, lang):
+        """Trend graph for production rate."""
+        lang = lang or "en"
+        tag = "Status.ColorSort.Sort1.Throughput.ObjectPerMin.Current"
+        val = 0
+        if app_state.connected and tag in app_state.tags:
+            raw = app_state.tags[tag]["data"].latest_value
+            val = raw if raw is not None else 0
+        production_history.append(val)
+        if len(production_history) > 60:
+            production_history[:] = production_history[-60:]
+        try:
+            import plotly.graph_objects as go
+            fig = go.Figure(go.Scatter(x=list(range(len(production_history))), y=production_history))
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
+            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+        except Exception:  # pragma: no cover - plotly missing
+            graph = html.Div(str(val))
+        return html.Div([
+            dbc.Row([
+                dbc.Col(html.H6(tr("production_rate_objects_title", lang)), width=9),
+                dbc.Col(dbc.Button("Units", id={"type": "open-production-rate-units", "index": 0}, size="sm", color="primary"), width=3),
+            ], className="mb-2"),
+            graph,
+        ])
+
+    @_dash_callback(
+        Output("section-6-1", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_6_1(n, lang):
+        """Trend graph for counter values."""
+        global counter_history
+        lang = lang or "en"
+        for i, val in enumerate(previous_counter_values, 1):
+            hist = counter_history[i]
+            hist.append(val)
+            if len(hist) > 60:
+                counter_history[i] = hist[-60:]
+        try:
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            for i in range(1, 13):
+                fig.add_trace(go.Scatter(x=list(range(len(counter_history[i]))), y=counter_history[i], name=str(i)))
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
+            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+        except Exception:  # pragma: no cover - plotly missing
+            graph = html.Div("N/A")
+        return html.Div([
+            dbc.Row([
+                dbc.Col(html.H6(tr("counter_values_trend_title", lang)), width=9),
+                dbc.Col(dbc.Button("Display", id={"type": "open-display", "index": 0}, size="sm", color="primary"), width=3),
+            ], className="mb-2"),
+            graph,
+        ])
+
+    @_dash_callback(
+        Output("section-7-1", "children"),
+        Input("status-update-interval", "n_intervals"),
+        State("language-preference-store", "data"),
+    )
+    def update_section_7_1(n, lang):
+        """Air pressure gauge display."""
+        lang = lang or "en"
+        tag = "Status.Environmental.AirPressurePsi"
+        value = 0
+        if app_state.connected and tag in app_state.tags:
+            raw = app_state.tags[tag]["data"].latest_value
+            value = raw / 100 if raw is not None else 0
+        try:
+            import plotly.graph_objects as go
+            fig = go.Figure(go.Indicator(mode="gauge+number", value=value, gauge={"axis": {"range": [0, 100]}}))
+            fig.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+        except Exception:  # pragma: no cover - plotly missing
+            graph = html.Div(str(value))
+        return html.Div([
+            html.H6(tr("air_pressure_title", lang)),
+            graph,
         ])
 
     @_dash_callback(
