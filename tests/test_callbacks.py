@@ -115,3 +115,21 @@ def test_toggle_historical_controls(monkeypatch):
     assert func is not None
     assert func("historical") == "d-block"
     assert func("live") == "d-none"
+
+
+def test_machine_cards_after_add(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"selected_floor": "all", "floors": [{"id": 1, "name": "F1"}]}
+    machines = {"machines": []}
+
+    machines = add_machine(1, machines, floors)
+    cards = render_cards(floors, machines, "new")
+
+    assert cards is not None
+    assert cards != callbacks.no_update
+    assert len(cards) == 1

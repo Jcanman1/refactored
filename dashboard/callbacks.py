@@ -500,7 +500,7 @@ def register_callbacks() -> None:
         Input("current-dashboard", "data"),
     )
     def render_machine_cards(floors_data, machines_data, which):
-        if which != "layout":
+        if which != "new":
             return no_update
         selected = floors_data.get("selected_floor", "all")
         machines = machines_data.get("machines", [])
