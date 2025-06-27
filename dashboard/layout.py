@@ -463,8 +463,18 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
             className="mb-1 machine-card-disconnected",
         ),
         html.Div(id="machines-container"),
-        dbc.Button("Add Machine", id="add-machine-btn", color="success", size="sm", className="mt-2"),
     ]
+
+    if selected_floor != "all":
+        right_content.append(
+            dbc.Button(
+                "Add Machine",
+                id="add-machine-btn",
+                color="success",
+                size="sm",
+                className="mt-2",
+            )
+        )
 
     main = dbc.Col(html.Div(right_content), width=9)
 

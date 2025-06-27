@@ -15,6 +15,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 def load_modules(monkeypatch, src_patches=None):
     """Import dashboard modules with stubbed dependencies."""
 
+    # Provide a minimal pandas stub when the real package is unavailable
+    if "pandas" not in sys.modules:
+        monkeypatch.setitem(sys.modules, "pandas", ModuleType("pandas"))
+
+    # Stub the heavy generate_report module to avoid optional dependencies
+    report_mod = ModuleType("generate_report")
+    report_mod.fetch_last_24h_metrics = lambda: {}
+
+    def _build_report(data, path):
+        with open(path, "wb") as fh:
+            fh.write(b"PDF")
+
+    report_mod.build_report = _build_report
+    monkeypatch.setitem(sys.modules, "generate_report", report_mod)
+
     # Stub for the legacy module expected by the dashboard helpers
     legacy = ModuleType("EnpresorOPCDataViewBeforeRestructure")
 
