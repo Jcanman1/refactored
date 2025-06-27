@@ -9,7 +9,14 @@ from threading import Thread
 from typing import Optional
 
 from .state import app_state
-from .opc_client import connect_to_server, run_async, resume_update_thread
+from .settings import load_ip_addresses
+from .opc_client import (
+    connect_to_server,
+    connect_and_monitor_machine_with_timeout,
+    machine_connections,
+    run_async,
+    resume_update_thread,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -26,28 +33,34 @@ def _reconnection_loop() -> None:
 
     while not app_state.thread_stop_flag:
         try:
-            server_url: Optional[str] = getattr(app_state, "server_url", None)
             server_name: Optional[str] = getattr(app_state, "server_name", None)
+            addresses = load_ip_addresses().get("addresses", [])
 
-            if not app_state.connected and server_url:
-                logger.info("Attempting reconnect to %s", server_url)
+            for idx, info in enumerate(addresses):
+                ip = info.get("ip")
+                if not ip:
+                    continue
+                machine_id = info.get("label") or f"machine{idx + 1}"
+                conn = machine_connections.get(machine_id)
+                if conn and conn.get("connected"):
+                    continue
+
+                logger.info("Attempting reconnect to %s (%s)", machine_id, ip)
                 success = False
                 try:
-                    success = run_async(connect_to_server(server_url, server_name))
+                    success = run_async(
+                        connect_and_monitor_machine_with_timeout(
+                            ip, machine_id, server_name, timeout=5
+                        )
+                    )
                 except Exception as exc:  # pragma: no cover - network dependent
                     logger.error("Auto-reconnection attempt failed: %s", exc)
 
                 if success:
-                    logger.info("Reconnected successfully")
+                    logger.info("Reconnected %s successfully", machine_id)
                     resume_update_thread()
-                    delay = RECONNECT_INTERVAL
-                else:
-                    delay = min(60, delay * 2)
-                    logger.debug(
-                        "Reconnection failed, retrying in %s seconds", delay
-                    )
-            else:
-                delay = RECONNECT_INTERVAL
+
+            delay = RECONNECT_INTERVAL
         except Exception as exc:  # pragma: no cover - unexpected errors
             logger.error("Error in auto-reconnection loop: %s", exc)
             delay = min(60, delay * 2)
