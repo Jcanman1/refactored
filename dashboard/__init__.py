@@ -44,7 +44,9 @@ from .settings import (
     capacity_unit_label,
 )
 from .layout import (
-    render_dashboard_shell,
+
+    render_dashboard_wrapper,
+
     render_new_dashboard,
     render_floor_machine_layout_with_customizable_names,
     render_floor_machine_layout_enhanced_with_selection,
@@ -85,7 +87,7 @@ __all__ = [
     "convert_capacity_from_lbs",
     "capacity_unit_label",
     "load_saved_image",
-    "render_dashboard_shell",
+    "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",

@@ -25,7 +25,8 @@ from dashboard import (
     load_layout,
     initialize_data_saving,
 )
-from dashboard.layout import render_dashboard_shell
+
+from dashboard.layout import render_dashboard_wrapper
 from dashboard.state import app_state
 
 logger = logging.getLogger(__name__)
@@ -132,8 +133,8 @@ if __name__ == "__main__":
 
             threading.Thread(target=open_browser).start()
 
-        app.layout = render_dashboard_shell()
 
+        app.layout = render_dashboard_wrapper()
         app.run(debug=args.debug, use_reloader=False, host="0.0.0.0", port=8050)
 
     except KeyboardInterrupt:
