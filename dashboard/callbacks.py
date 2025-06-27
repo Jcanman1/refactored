@@ -165,6 +165,7 @@ def register_callbacks() -> None:
         State("production-data-store", "data"),
         State("weight-preference-store", "data"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_production_section(which, n, production_data, weight_pref, lang):
         """Update capacity display using latest OPC tag values."""
@@ -563,6 +564,7 @@ def register_callbacks() -> None:
         Input("status-update-interval", "n_intervals"),
         State("production-data-store", "data"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_1_2(n, prod_data, lang):
         lang = lang or "en"
@@ -617,6 +619,7 @@ def register_callbacks() -> None:
         Output("section-3-2", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_3_2(n, lang):
         lang = lang or "en"
@@ -644,6 +647,7 @@ def register_callbacks() -> None:
         Output("section-2", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_2(n, lang):
         """Display preset, status and feeder information."""
@@ -728,6 +732,7 @@ def register_callbacks() -> None:
         Input("status-update-interval", "n_intervals"),
         State("additional-image-store", "data"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_3_1(n, img_data, lang):
         """Show corporate image with a load button."""
@@ -752,6 +757,7 @@ def register_callbacks() -> None:
         Output("section-4", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_4(n, lang):
         """List sensitivity names."""
@@ -775,6 +781,7 @@ def register_callbacks() -> None:
         Output("section-5-1", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_5_1(n, lang):
         """Trend graph for production rate."""
@@ -810,6 +817,7 @@ def register_callbacks() -> None:
         Output("section-6-1", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_6_1(n, lang):
         """Trend graph for counter values."""
@@ -845,6 +853,7 @@ def register_callbacks() -> None:
         Output("section-7-1", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_7_1(n, lang):
         """Air pressure gauge display."""
@@ -873,6 +882,7 @@ def register_callbacks() -> None:
     @_dash_callback(
         Output("section-5-2", "children"),
         Input("status-update-interval", "n_intervals"),
+        prevent_initial_call=True,
     )
     def update_section_5_2(n):
         global previous_counter_values, active_alarms
@@ -915,6 +925,7 @@ def register_callbacks() -> None:
         Output("section-6-2", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_6_2(n, lang):
         lang = lang or "en"
@@ -943,6 +954,7 @@ def register_callbacks() -> None:
         Output("section-7-2", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
+        prevent_initial_call=True,
     )
     def update_section_7_2(n, lang):
         lang = lang or "en"
