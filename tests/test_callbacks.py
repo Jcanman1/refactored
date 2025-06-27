@@ -107,3 +107,11 @@ def test_delete_confirmation_callback_registered(monkeypatch):
     args = [None] * len(params)
     result = func(*args)
     assert result is not None
+
+
+def test_toggle_historical_controls(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    func = registered.get("toggle_historical_controls_visibility")
+    assert func is not None
+    assert func("historical") == "d-block"
+    assert func("live") == "d-none"
