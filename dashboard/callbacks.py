@@ -344,14 +344,14 @@ def register_callbacks() -> None:
     def handle_floor_selection(clicks, ids, floors_data):
         """Switch the selected floor when a tile is clicked."""
         ctx = callback_context
-        if not ctx.triggered:
+        trigger = getattr(ctx, "triggered_id", None)
+        if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
             return no_update
-        for i, c in enumerate(clicks):
-            if c and i < len(ids):
-                fid = ids[i]["index"]
-                floors_data["selected_floor"] = fid
-                return floors_data
-        return no_update
+        fid = trigger.get("index")
+        if fid is None:
+            return no_update
+        floors_data["selected_floor"] = fid
+        return floors_data
 
     @_dash_callback(
         Output("floors-data", "data", allow_duplicate=True),
