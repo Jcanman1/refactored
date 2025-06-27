@@ -282,3 +282,30 @@ def test_add_floor_add_machine_from_all(monkeypatch):
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
     assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
+
+
+def test_add_machine_does_not_change_selected_floor(monkeypatch):
+    """Adding a machine should not modify the selected floor."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    machines = add_machine(1, machines, floors)
+
+    floors = add_floor(1, floors, machines)
+    assert floors["selected_floor"] == 2
+
+    machines = add_machine(1, machines, floors)
+
+    assert floors["selected_floor"] == 2
+    assert machines["machines"][-1]["floor_id"] == 2
+
+    cards = render_cards(floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
