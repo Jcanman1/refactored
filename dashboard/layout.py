@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from .machine_layout import load_layout
+
 from .settings import load_language_preference, load_weight_preference
 
 # ``dash`` is an optional dependency during testing.  These helpers fall
@@ -49,6 +51,7 @@ except Exception:  # pragma: no cover - provide minimal stubs
 # Height constants used by the dashboard grid layout
 SECTION_HEIGHT = "220px"
 SECTION_HEIGHT2 = "250px"
+HEADER_CARD_HEIGHT = "65px"
 
 
 def render_new_dashboard() -> Any:
@@ -205,32 +208,148 @@ def render_main_dashboard() -> Any:
 
 
 def render_floor_machine_layout_with_customizable_names() -> Any:
-    """Return a layout for managing floors and machines."""
+    """Return a layout for managing floors and machines with editing controls."""
 
-    sidebar = html.Div(
-        [
-            html.Img(src="/assets/EnpresorMachine.png", className="mb-2"),
-            dcc.Store(id="floors-data"),
-            dcc.Store(id="machines-data"),
-            html.Button("Show All Machines", id={"type": "floor-tile", "index": "all"}),
-            html.Div(id="floor-buttons"),
-            html.Button("Add Floor", id="add-floor-btn"),
-            html.Div(id="machines-online"),
-            html.Div(id="save-status"),
-        ],
-        id="sidebar",
+    floors_data, machines_data = load_layout()
+    if not floors_data:
+        floors_data = {"floors": [{"id": 1, "name": "1st Floor"}], "selected_floor": "all"}
+    if not machines_data:
+        machines_data = {"machines": []}
+
+    floors = floors_data.get("floors", [])
+    selected_floor = floors_data.get("selected_floor", "all")
+    machines = machines_data.get("machines", [])
+
+    # sidebar buttons
+    is_all_selected = selected_floor == "all"
+    all_button_style = {
+        "backgroundColor": "#007bff" if is_all_selected else "#696969",
+        "color": "white" if is_all_selected else "black",
+        "border": "2px solid #28a745" if is_all_selected else "1px solid #dee2e6",
+        "cursor": "pointer",
+        "borderRadius": "0.375rem",
+    }
+
+    left_sidebar_buttons = []
+    left_sidebar_buttons.append(dcc.Store(id="floors-data", data=floors_data))
+    left_sidebar_buttons.append(dcc.Store(id="machines-data", data=machines_data))
+    left_sidebar_buttons.append(
+        html.Div(
+            html.Img(src="/assets/EnpresorMachine.png", style={"maxWidth": "100%", "maxHeight": "120px", "objectFit": "contain", "margin": "0 auto", "display": "block"}),
+            className="text-center mb-3",
+        )
     )
 
-    main = html.Div(
-        [
-            html.Div("Selected Floor", id="floor-header"),
-            html.Div(id="machines-container"),
-            html.Button("Add Machine", id="add-machine-btn"),
-        ],
-        id="main-content",
+    left_sidebar_buttons.append(
+        dbc.Button(
+            "Show All Machines",
+            id={"type": "floor-tile", "index": "all"},
+            n_clicks=0,
+            style=all_button_style,
+            className="mb-3 w-100 floor-tile-btn",
+            size="lg",
+        )
     )
 
-    return html.Div([sidebar, main], id="floor-machine-layout")
+    for floor in floors:
+        fid = floor.get("id")
+        fname = floor.get("name", f"Floor {fid}")
+        is_selected = fid == selected_floor and selected_floor != "all"
+        floor_style = {
+            "backgroundColor": "#007bff" if is_selected else "#696969",
+            "color": "white" if is_selected else "black",
+            "border": "2px solid #007bff" if is_selected else "1px solid #dee2e6",
+            "cursor": "pointer",
+            "borderRadius": "0.375rem",
+        }
+
+        content = dbc.Row(
+            [
+                dbc.Col(
+                    dbc.Button(
+                        "×",
+                        id={"type": "delete-floor-btn", "index": fid},
+                        color="danger",
+                        size="md",
+                        className="delete-floor-btn",
+                        style={"fontSize": "1rem"},
+                        title=f"Delete {fname}",
+                    ),
+                    width=1,
+                    className="pe-1",
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        fname,
+                        id={"type": "floor-tile", "index": fid},
+                        n_clicks=0,
+                        style=floor_style,
+                        className="w-100 floor-tile-btn",
+                        size="lg",
+                    ),
+                    width=9,
+                    className="px-1",
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        "✏️",
+                        id={"type": "edit-floor-name-btn", "index": fid},
+                        color="light",
+                        size="lg",
+                        className="w-100 edit-floor-name-btn",
+                    ),
+                    width=2,
+                    className="ps-1",
+                ),
+            ],
+            className="g-0 align-items-center",
+        )
+        left_sidebar_buttons.append(html.Div(content, className="mb-2"))
+
+    left_sidebar_buttons.append(
+        dbc.Button("Add Floor", id="add-floor-btn", color="secondary", className="mb-2 w-100", size="lg")
+    )
+
+    connected_count = 0
+    total_count = len(machines)
+    left_sidebar_buttons.append(
+        dbc.Card(
+            dbc.CardBody(
+                [
+                    html.Div("Total Machines Online", className="text-muted mb-1", style={"fontSize": "1.2rem", "textAlign": "center"}),
+                    html.Div(f"{connected_count} / {total_count}", style={"fontSize": "4.8rem", "fontWeight": "bold", "lineHeight": "1.2", "textAlign": "center"}),
+                ],
+                className="p-2",
+            ),
+            className="mb-2 machine-card-disconnected",
+        )
+    )
+
+    left_sidebar_buttons.append(html.Div(id="save-status", className="text-success small text-center mt-3"))
+
+    sidebar = dbc.Col(html.Div(left_sidebar_buttons), width=3, style={"alignSelf": "flex-start"})
+
+    header_text = "All Machines" if selected_floor == "all" else next((f["name"] for f in floors if f["id"] == selected_floor), f"Floor {selected_floor}")
+
+    right_content = [
+        dbc.Card(
+            dbc.CardBody(
+                html.Div(
+                    header_text,
+                    className="text-center mb-0 floor-header-text",
+                ),
+                className="p-2 d-flex align-items-center justify-content-center",
+                style={"height": HEADER_CARD_HEIGHT},
+            ),
+            className="mb-1 machine-card-disconnected",
+        ),
+        html.Div(id="machines-container"),
+        dbc.Button("Add Machine", id="add-machine-btn", color="success", size="sm", className="mt-2"),
+    ]
+
+    main = dbc.Col(html.Div(right_content), width=9)
+
+    return dbc.Row([sidebar, main])
 
 
 def render_floor_machine_layout_enhanced_with_selection() -> Any:
