@@ -95,11 +95,12 @@ from .settings import (
 from .layout import (
     render_new_dashboard,
     render_floor_machine_layout_with_customizable_names,
+    build_machine_card,
 )
 
 
 from i18n import tr
-from .layout import render_new_dashboard, render_main_dashboard
+from .layout import render_main_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -506,27 +507,18 @@ def register_callbacks() -> None:
         machines = machines_data.get("machines", [])
         if selected != "all":
             machines = [m for m in machines if m.get("floor_id") == selected]
-        cards = []
-        for m in machines:
-            mid = m.get("id")
-            name = m.get("name", f"Machine {mid}")
-            card = dbc.Card(
-                dbc.CardBody(
-                    [
-                        html.Span(name),
-                        dbc.Button(
-                            "×",
-                            id={"type": "delete-machine-btn", "index": mid},
-                            size="sm",
-                            color="danger",
-                            className="ms-2",
-                        ),
-                    ],
-                    className="d-flex justify-content-between align-items-center",
-                ),
-                className="mb-2 machine-card-disconnected",
-            )
-            cards.append(card)
+        from .settings import load_ip_addresses
+
+        data = load_ip_addresses()
+        ip_options = [
+            {"label": item.get("label"), "value": item.get("ip")}
+            for item in data.get("addresses", [])
+            if isinstance(item, dict) and "ip" in item and "label" in item
+        ]
+        if not ip_options:
+            ip_options = [{"label": "Default (192.168.0.125)", "value": "192.168.0.125"}]
+
+        cards = [build_machine_card(m, ip_options) for m in machines]
         if not cards:
             cards.append(html.Div("No machines configured"))
         return cards

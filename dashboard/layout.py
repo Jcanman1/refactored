@@ -507,6 +507,168 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
     return render_floor_machine_layout_with_customizable_names()
 
 
+def build_machine_card(machine: dict, ip_options: list, *, active: bool = False, lang: str | None = None) -> Any:
+    """Return a Dash component displaying a machine summary."""
+
+    lang = lang or "en"
+    mid = machine.get("id")
+    connected = bool(machine.get("connected"))
+
+    if active:
+        card_class = (
+            "mb-2 machine-card-active-connected"
+            if connected
+            else "mb-2 machine-card-active-disconnected"
+        )
+    else:
+        card_class = (
+            "mb-2 machine-card-connected" if connected else "mb-2 machine-card-disconnected"
+        )
+
+    overlay = html.Div(
+        "",
+        id={"type": "machine-card-click", "index": mid},
+        style={
+            "position": "absolute",
+            "top": "0",
+            "left": "0",
+            "right": "0",
+            "bottom": "0",
+            "zIndex": "1",
+            "cursor": "pointer",
+            "backgroundColor": "transparent",
+        },
+        title=f"Click to select Machine {mid}",
+    )
+
+    preset = machine.get("preset", "N/A")
+    status = machine.get("status", "Unknown")
+    feeder = machine.get("feeder", "Unknown")
+    capacity = machine.get("capacity", "0")
+    accepts = machine.get("accepts", "0")
+    rejects = machine.get("rejects", "0")
+
+    dropdown = dcc.Dropdown(
+        id={"type": "machine-ip-dropdown", "index": mid},
+        options=ip_options,
+        value=machine.get("selected_ip", ip_options[0]["value"] if ip_options else None),
+        placeholder="Select Machine",
+        clearable=False,
+        className="machine-card-dropdown",
+        style={"color": "black", "position": "relative", "zIndex": "2", "width": "100%"},
+    )
+
+    left = html.Div(
+        [
+            html.Small(tr("select_machine_label", lang), className="mb-1 d-block"),
+            dropdown,
+            html.Small(
+                f"({'Connected' if connected else 'Not Connected'})",
+                className="d-block mb-1",
+                style={
+                    "color": "#007bff" if connected else "#dc3545",
+                    "fontSize": "1.2rem",
+                    "fontWeight": "bold",
+                },
+            ),
+            html.Div(
+                [
+                    html.Small(tr("model_label", lang), className="fw-bold", style={"fontSize": "1.2rem"}),
+                    html.Small(machine.get("model", "N/A"), style={"fontSize": "1.2rem"}),
+                ],
+                className="mb-1",
+            ),
+            html.Div(
+                [
+                    html.Small(tr("serial_number_label", lang), className="fw-bold", style={"fontSize": "1.2rem"}),
+                    html.Small(machine.get("serial", "N/A"), style={"fontSize": "1.2rem"}),
+                ],
+                className="mb-0",
+            ),
+        ],
+        className="mb-0",
+    )
+
+    right = html.Div(
+        [
+            html.Div(
+                [
+                    html.Small(tr("preset_label", lang).upper(), className="fw-bold d-block", style={"fontSize": "1.2rem"}),
+                    html.Small(preset, style={"fontSize": "1.5rem", "color": "#1100FF"}),
+                ],
+                className="mb-0",
+            ),
+            html.Div(
+                [
+                    html.Small(tr("machine_status_label", lang), className="fw-bold d-block", style={"fontSize": "1.2rem"}),
+                    html.Small(status, style={"fontSize": "1.5rem", "fontWeight": "bold"}),
+                ],
+                className="mb-0",
+            ),
+            html.Div(
+                [
+                    html.Small(tr("feeder_label", lang), className="fw-bold d-block", style={"fontSize": "1.2rem"}),
+                    html.Small(feeder, style={"fontSize": "1.5rem", "fontWeight": "bold"}),
+                ],
+                className="mb-0",
+            ),
+        ],
+        className="mb-0",
+    )
+
+    bottom = dbc.Row(
+        [
+            dbc.Col([
+                html.Div(tr("accepts_label", lang), className="fw-bold text-center", style={"fontSize": "1.2rem"}),
+                html.Div(accepts, className="text-center", style={"fontSize": "1.9rem", "fontWeight": "bold"}),
+            ], md=6, sm=12),
+            dbc.Col([
+                html.Div(tr("rejects_label", lang), className="fw-bold text-center", style={"fontSize": "1.2rem"}),
+                html.Div(rejects, className="text-center", style={"fontSize": "1.9rem", "fontWeight": "bold"}),
+            ], md=6, sm=12),
+        ],
+        className="mb-0",
+    )
+
+    return dbc.Card(
+        [
+            overlay,
+            dbc.CardBody(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(html.H6(f"{tr('machine_label', lang)} {mid}", className="text-center mb-2"), width=10),
+                            dbc.Col(
+                                dbc.Button(
+                                    "×",
+                                    id={"type": "delete-machine-btn", "index": mid},
+                                    color="danger",
+                                    size="sm",
+                                    className="p-1",
+                                    style={"fontSize": "0.8rem", "width": "25px", "height": "25px", "borderRadius": "50%", "lineHeight": "1", "position": "relative", "zIndex": "2"},
+                                    title=f"Delete Machine {mid}",
+                                ),
+                                width=2,
+                                className="text-end",
+                            ),
+                        ],
+                        className="mb-0",
+                    ),
+                    dbc.Row([dbc.Col(left, md=6, sm=12), dbc.Col(right, md=6, sm=12)], className="mb-0"),
+                    html.Div(
+                        html.Div(f"{capacity}", className="text-center production-data"),
+                        className="mb-0",
+                    ),
+                    bottom,
+                ],
+                style={"position": "relative"},
+            ),
+        ],
+        className=card_class,
+        style={"position": "relative", "cursor": "pointer", "flexWrap": "wrap"},
+    )
+
+
 # Connection controls replicated from the legacy dashboard
 connection_controls = dbc.Card(
     dbc.CardBody(
@@ -885,6 +1047,7 @@ __all__ = [
     "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
+    "build_machine_card",
     "connection_controls",
     "threshold_modal",
     "settings_modal",
