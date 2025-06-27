@@ -138,6 +138,8 @@ def register_callbacks() -> None:
         Input("current-dashboard", "data"),
     )
     def render_dashboard(which):
+        if which == "layout":
+            return render_floor_machine_layout_with_customizable_names()
         if which == "new":
             return render_new_dashboard()
         return render_main_dashboard()
@@ -343,7 +345,7 @@ def register_callbacks() -> None:
         return no_update, no_update
 
     @_dash_callback(
-        Output("current-dashboard", "data"),
+        Output("current-dashboard", "data", allow_duplicate=True),
         Input("dashboard-selector", "value"),
         prevent_initial_call=False,
     )
@@ -351,14 +353,6 @@ def register_callbacks() -> None:
         """Switch between dashboard views."""
         return value or "main"
 
-    @_dash_callback(
-        Output("dashboard-content", "children"),
-        Input("current-dashboard", "data"),
-    )
-    def render_dashboard(which):
-        if which == "layout":
-            return render_floor_machine_layout_with_customizable_names()
-        return render_new_dashboard()
 
     @_dash_callback(
         Output("machines-container", "children"),
