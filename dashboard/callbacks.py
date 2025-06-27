@@ -92,6 +92,7 @@ from .settings import (
     load_threshold_settings,
     load_email_settings,
     load_language_preference,
+    load_weight_preference,
 
 )
 from .layout import (
@@ -108,6 +109,8 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 LAYOUT_PATH = DATA_DIR / "floor_machine_layout.json"
+
+NUMERIC_FONT = "Monaco, Consolas, 'Courier New', monospace"
 
 previous_counter_values = [0] * 12
 active_alarms: list[str] = []
@@ -567,7 +570,63 @@ def register_callbacks() -> None:
         ]
         if not cols:
             return html.Div("No machines configured")
-        return dbc.Row(cols)
+
+        def _to_float(val: object) -> float:
+            try:
+                return float(str(val).replace(",", ""))
+            except Exception:
+                return 0.0
+
+        total_capacity = sum(_to_float(m.get("capacity")) for m in machines)
+        total_accepts = sum(_to_float(m.get("accepts")) for m in machines)
+        total_rejects = sum(_to_float(m.get("rejects")) for m in machines)
+
+        pref = load_weight_preference()
+        lang = load_language_preference()
+
+        total_capacity_fmt = f"{total_capacity:,.0f}"
+        total_accepts_fmt = f"{total_accepts:,.0f}"
+        total_rejects_fmt = f"{total_rejects:,.0f}"
+
+        summary_card = dbc.Card(
+            dbc.CardBody(
+                html.Div(
+                    [
+                        html.Span(
+                            tr("total_production_label", lang),
+                            className="fw-bold",
+                            style={"fontSize": "1.2rem"},
+                        ),
+                        html.Span(
+                            f"{total_capacity_fmt} {capacity_unit_label(pref)}",
+                            style={"fontFamily": NUMERIC_FONT, "fontSize": "2.5rem"},
+                        ),
+                        html.Span(
+                            tr("accepts_label", lang),
+                            className="fw-bold ms-3",
+                            style={"fontSize": "1.2rem"},
+                        ),
+                        html.Span(
+                            f"{total_accepts_fmt} {capacity_unit_label(pref, False)}",
+                            style={"fontFamily": NUMERIC_FONT, "fontSize": "2.5rem"},
+                        ),
+                        html.Span(
+                            tr("rejects_label", lang),
+                            className="fw-bold ms-3",
+                            style={"fontSize": "1.2rem"},
+                        ),
+                        html.Span(
+                            f"{total_rejects_fmt} {capacity_unit_label(pref, False)}",
+                            style={"fontFamily": NUMERIC_FONT, "fontSize": "2.5rem"},
+                        ),
+                    ],
+                    className="d-flex justify-content-around",
+                )
+            ),
+            className="mt-2 bg-primary text-white",
+        )
+
+        return html.Div(dbc.Row(cols), summary_card)
 
     @_dash_callback(
         Output("machines-data", "data", allow_duplicate=True),
