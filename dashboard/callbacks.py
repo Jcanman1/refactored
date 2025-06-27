@@ -345,11 +345,32 @@ def register_callbacks() -> None:
         """Switch the selected floor when a tile is clicked."""
         ctx = callback_context
         trigger = getattr(ctx, "triggered_id", None)
-        if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
-            return no_update
-        fid = trigger.get("index")
+
+        if trigger is None:
+            if not ctx.triggered:
+                return no_update
+            prop_id = ctx.triggered[0].get("prop_id")
+            if not prop_id or "floor-tile" not in prop_id:
+                return no_update
+            import json
+            import re
+
+            match = re.search(r"\{[^}]+\}", prop_id)
+            if not match:
+                return no_update
+            try:
+                btn_id = json.loads(match.group())
+                fid = btn_id.get("index")
+            except json.JSONDecodeError:
+                return no_update
+        else:
+            if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
+                return no_update
+            fid = trigger.get("index")
+
         if fid is None:
             return no_update
+
         floors_data["selected_floor"] = fid
         return floors_data
 

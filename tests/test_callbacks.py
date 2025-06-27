@@ -145,3 +145,16 @@ def test_floor_selection_updates_selected(monkeypatch):
         data = {"selected_floor": "all"}
         result = select([], [], data)
         assert result["selected_floor"] == fid
+
+
+def test_floor_selection_fallback_to_triggered(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    select = registered["handle_floor_selection"]
+
+    for fid in [1, 2, 3]:
+        prop = f'{{"type":"floor-tile","index":{fid}}}.n_clicks'
+        ctx = SimpleNamespace(triggered=[{"prop_id": prop}])
+        monkeypatch.setattr(callbacks, "callback_context", ctx)
+        data = {"selected_floor": "all"}
+        result = select([], [], data)
+        assert result["selected_floor"] == fid
