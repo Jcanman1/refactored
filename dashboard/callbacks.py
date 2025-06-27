@@ -160,13 +160,16 @@ def register_callbacks() -> None:
     @_dash_callback(
         Output("section-1-1", "children"),
         Output("production-data-store", "data"),
+        Input("current-dashboard", "data"),
         Input("status-update-interval", "n_intervals"),
         State("production-data-store", "data"),
         State("weight-preference-store", "data"),
         State("language-preference-store", "data"),
     )
-    def update_production_section(n, production_data, weight_pref, lang):
+    def update_production_section(which, n, production_data, weight_pref, lang):
         """Update capacity display using latest OPC tag values."""
+        if which not in ("new", "main"):
+            return no_update, no_update
         pref = weight_pref or {"unit": "lb", "label": "lbs", "value": 1.0}
         lang = lang or "en"
 
