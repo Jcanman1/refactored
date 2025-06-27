@@ -347,7 +347,7 @@ def register_callbacks() -> None:
     @_dash_callback(
         Output("current-dashboard", "data", allow_duplicate=True),
         Input("dashboard-selector", "value"),
-        prevent_initial_call=False,
+        prevent_initial_call=True,
     )
     def switch_dashboard(value):
         """Switch between dashboard views."""
