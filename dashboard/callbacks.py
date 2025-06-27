@@ -387,6 +387,7 @@ def register_callbacks() -> None:
         next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
         floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
         floors_data["floors"] = floors
+        # Select the newly created floor so the machine list starts empty
         floors_data["selected_floor"] = next_id
         _save_floor_machine_data(floors_data, machines_data or {})
         return floors_data
@@ -526,7 +527,7 @@ def register_callbacks() -> None:
         selected = floors_data.get("selected_floor", "all")
         machines = machines_data.get("machines", [])
         if selected != "all":
-            # Cast IDs to strings to avoid type mismatch when filtering
+            # Cast IDs to strings to avoid type mismatch when filtering by floor
             machines = [
                 m
                 for m in machines
