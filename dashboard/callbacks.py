@@ -92,6 +92,7 @@ from .layout import (
     render_floor_machine_layout_with_customizable_names,
 )
 from .email_utils import send_threshold_email
+from .reconnection import save_uploaded_image
 from i18n import tr
 from .layout import render_new_dashboard, render_main_dashboard
 
@@ -864,6 +865,47 @@ def register_callbacks() -> None:
             ], className="mb-2"),
             image,
         ])
+
+    @_dash_callback(
+        Output("upload-modal", "is_open"),
+        [Input("load-additional-image", "n_clicks"), Input("close-upload-modal", "n_clicks")],
+        [State("upload-modal", "is_open")],
+        prevent_initial_call=True,
+    )
+    def toggle_upload_modal(load_clicks, close_clicks, is_open):
+        """Show or hide the upload modal."""
+
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger_id == "load-additional-image" and load_clicks and not is_open:
+            return True
+        if trigger_id == "close-upload-modal" and close_clicks and is_open:
+            return False
+        return is_open
+
+    @_dash_callback(
+        Output("additional-image-store", "data"),
+        Output("upload-status", "children"),
+        Input("upload-image", "contents"),
+        State("upload-image", "filename"),
+        prevent_initial_call=True,
+    )
+    def process_uploaded_image(contents, filename):
+        """Handle an uploaded image and persist it."""
+
+        if contents is None:
+            return no_update, no_update
+        try:
+            logger.info("Processing image upload: %s", filename)
+            new_data = {"image": contents}
+            save_success = save_uploaded_image(contents)
+            logger.info("Image save result: %s", save_success)
+            return new_data, html.Div(f"Uploaded: {filename}", className="text-success")
+        except Exception as exc:  # pragma: no cover - unexpected errors
+            logger.error("Error uploading image: %s", exc)
+            return no_update, html.Div(f"Error uploading image: {exc}", className="text-danger")
 
     @_dash_callback(
         Output("section-4", "children"),
