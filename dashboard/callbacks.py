@@ -383,14 +383,15 @@ def register_callbacks() -> None:
     def add_floor_cb(n_clicks, floors_data, machines_data):
         if not n_clicks:
             return no_update
-        floors = floors_data.get("floors", [])
+        floors = list(floors_data.get("floors", []))
         next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
         floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
-        floors_data["floors"] = floors
+        new_floors = floors_data.copy()
+        new_floors["floors"] = floors
         # Select the newly created floor so the machine list starts empty
-        floors_data["selected_floor"] = next_id
-        _save_floor_machine_data(floors_data, machines_data or {})
-        return floors_data
+        new_floors["selected_floor"] = next_id
+        _save_floor_machine_data(new_floors, machines_data or {})
+        return new_floors
 
     @_dash_callback(
         Output("floors-data", "data", allow_duplicate=True),
@@ -562,7 +563,7 @@ def register_callbacks() -> None:
     def add_machine_cb(n_clicks, machines_data, floors_data):
         if not n_clicks:
             return no_update
-        machines = machines_data.get("machines", [])
+        machines = list(machines_data.get("machines", []))
         next_id = machines_data.get("next_machine_id") or (
             max([m.get("id", 0) for m in machines] or [0]) + 1
         )
@@ -571,10 +572,11 @@ def register_callbacks() -> None:
             floors = floors_data.get("floors", [])
             fid = floors[0]["id"] if floors else 1
         machines.append({"id": next_id, "floor_id": fid, "name": f"Machine {next_id}"})
-        machines_data["machines"] = machines
-        machines_data["next_machine_id"] = next_id + 1
-        _save_floor_machine_data(floors_data, machines_data)
-        return machines_data
+        new_machines = machines_data.copy()
+        new_machines["machines"] = machines
+        new_machines["next_machine_id"] = next_id + 1
+        _save_floor_machine_data(floors_data, new_machines)
+        return new_machines
 
     @_dash_callback(
         Output("floors-data", "data", allow_duplicate=True),

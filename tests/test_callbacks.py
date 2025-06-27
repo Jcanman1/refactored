@@ -195,3 +195,23 @@ def test_machine_filter_by_floor(monkeypatch):
     cards = render_cards(floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
+
+
+def test_add_floor_then_machine_filters(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    new_floors = add_floor(1, floors, machines)
+    machines = add_machine(1, machines, new_floors)
+
+    cards = render_cards(new_floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
+    assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
