@@ -97,3 +97,13 @@ def test_floor_machine_container_populated(monkeypatch):
 
     comp = render({}, {}, {}, {}, "new", {}, None, "en")
     assert hasattr(comp, "children")
+
+
+def test_delete_confirmation_callback_registered(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    func = registered.get("toggle_delete_confirmation_modal")
+    assert func is not None
+    params = inspect.signature(func).parameters
+    args = [None] * len(params)
+    result = func(*args)
+    assert result is not None

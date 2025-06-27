@@ -368,30 +368,59 @@ def register_callbacks() -> None:
         return no_update
 
     @_dash_callback(
-        Output("floors-data", "data", allow_duplicate=True),
-        Output("machines-data", "data", allow_duplicate=True),
-        Input({"type": "delete-floor-btn", "index": ALL}, "n_clicks"),
-        State({"type": "delete-floor-btn", "index": ALL}, "id"),
-        State("floors-data", "data"),
-        State("machines-data", "data"),
+        Output("delete-confirmation-modal", "is_open"),
+        Output("delete-item-details", "children"),
+        Output("delete-pending-store", "data"),
+        [
+            Input({"type": "delete-floor-btn", "index": ALL}, "n_clicks"),
+            Input({"type": "delete-machine-btn", "index": ALL}, "n_clicks"),
+            Input("cancel-delete-btn", "n_clicks"),
+        ],
+        [
+            State({"type": "delete-floor-btn", "index": ALL}, "id"),
+            State({"type": "delete-machine-btn", "index": ALL}, "id"),
+            State("floors-data", "data"),
+            State("machines-data", "data"),
+            State("delete-confirmation-modal", "is_open"),
+        ],
         prevent_initial_call=True,
     )
-    def delete_floor_cb(clicks, ids, floors_data, machines_data):
+    def toggle_delete_confirmation_modal(
+        floor_clicks,
+        machine_clicks,
+        cancel_clicks,
+        floor_ids,
+        machine_ids,
+        floors_data,
+        machines_data,
+        is_open,
+    ):
+        """Open or close the delete confirmation modal."""
         ctx = callback_context
         if not ctx.triggered:
-            return no_update, no_update
-        for i, c in enumerate(clicks):
-            if c and i < len(ids):
-                fid = ids[i]["index"]
-                floors = [f for f in floors_data.get("floors", []) if f.get("id") != fid]
-                machines = [m for m in machines_data.get("machines", []) if m.get("floor_id") != fid]
-                floors_data["floors"] = floors
-                machines_data["machines"] = machines
-                if floors_data.get("selected_floor") == fid:
-                    floors_data["selected_floor"] = "all"
-                _save_floor_machine_data(floors_data, machines_data)
-                return floors_data, machines_data
-        return no_update, no_update
+            return no_update, no_update, no_update
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "cancel-delete-btn" and cancel_clicks:
+            return False, no_update, {}
+        if "delete-floor-btn" in trigger:
+            for i, c in enumerate(floor_clicks):
+                if c and i < len(floor_ids):
+                    fid = floor_ids[i]["index"]
+                    name = next(
+                        (f.get("name", f"Floor {fid}") for f in floors_data.get("floors", []) if f.get("id") == fid),
+                        f"Floor {fid}",
+                    )
+                    return True, name, {"type": "floor", "id": fid}
+        if "delete-machine-btn" in trigger:
+            for i, c in enumerate(machine_clicks):
+                if c and i < len(machine_ids):
+                    mid = machine_ids[i]["index"]
+                    name = next(
+                        (m.get("name", f"Machine {mid}") for m in machines_data.get("machines", []) if m.get("id") == mid),
+                        f"Machine {mid}",
+                    )
+                    return True, name, {"type": "machine", "id": mid}
+        return no_update, no_update, no_update
 
     @_dash_callback(
         Output("machines-container", "children"),
@@ -456,25 +485,32 @@ def register_callbacks() -> None:
         return machines_data
 
     @_dash_callback(
+        Output("floors-data", "data", allow_duplicate=True),
         Output("machines-data", "data", allow_duplicate=True),
-        Input({"type": "delete-machine-btn", "index": ALL}, "n_clicks"),
-        State({"type": "delete-machine-btn", "index": ALL}, "id"),
-        State("machines-data", "data"),
+        Output("delete-confirmation-modal", "is_open", allow_duplicate=True),
+        Input("confirm-delete-btn", "n_clicks"),
+        State("delete-pending-store", "data"),
         State("floors-data", "data"),
+        State("machines-data", "data"),
         prevent_initial_call=True,
     )
-    def delete_machine_cb(clicks, ids, machines_data, floors_data):
-        ctx = callback_context
-        if not ctx.triggered:
-            return no_update
-        for i, c in enumerate(clicks):
-            if c and i < len(ids):
-                mid = ids[i]["index"]
-                machines = [m for m in machines_data.get("machines", []) if m.get("id") != mid]
-                machines_data["machines"] = machines
-                _save_floor_machine_data(floors_data, machines_data)
-                return machines_data
-        return no_update
+    def execute_confirmed_delete(n_clicks, pending, floors_data, machines_data):
+        """Delete the selected item after user confirmation."""
+        if not n_clicks or not pending:
+            return no_update, no_update, no_update
+        item_type = pending.get("type")
+        item_id = pending.get("id")
+        if item_type == "floor":
+            floors_data["floors"] = [f for f in floors_data.get("floors", []) if f.get("id") != item_id]
+            machines_data["machines"] = [m for m in machines_data.get("machines", []) if m.get("floor_id") != item_id]
+            if floors_data.get("selected_floor") == item_id:
+                floors_data["selected_floor"] = "all"
+        elif item_type == "machine":
+            machines_data["machines"] = [m for m in machines_data.get("machines", []) if m.get("id") != item_id]
+        else:
+            return no_update, no_update, False
+        _save_floor_machine_data(floors_data, machines_data)
+        return floors_data, machines_data, False
 
     @_dash_callback(
         Output("current-dashboard", "data", allow_duplicate=True),

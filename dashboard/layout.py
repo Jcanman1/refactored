@@ -104,10 +104,12 @@ def render_dashboard_shell() -> Any:
             dcc.Store(id="weight-preference-store", data=load_weight_preference()),
             dcc.Store(id="language-preference-store", data=load_language_preference()),
             dcc.Store(id="additional-image-store", data=load_saved_image()),
+            dcc.Store(id="delete-pending-store", data={}),
             header,
             connection_controls,
             html.Div(id="dashboard-content"),
             settings_modal,
+            delete_confirmation_modal,
         ]
     )
 
@@ -635,6 +637,31 @@ settings_modal = dbc.Modal(
 )
 
 
+# Confirmation modal displayed before deleting a floor or machine
+delete_confirmation_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(
+            dbc.ModalTitle(tr("confirm_deletion_title"), id="delete-confirmation-header")
+        ),
+        dbc.ModalBody(
+            [
+                html.Div(tr("delete_warning"), id="delete-warning", className="mb-2"),
+                html.Div(id="delete-item-details"),
+            ]
+        ),
+        dbc.ModalFooter(
+            [
+                dbc.Button(tr("cancel"), id="cancel-delete-btn", color="secondary", className="me-2"),
+                dbc.Button(tr("yes_delete"), id="confirm-delete-btn", color="danger"),
+            ]
+        ),
+    ],
+    id="delete-confirmation-modal",
+    is_open=False,
+    centered=True,
+)
+
+
 __all__ = [
     "render_dashboard_wrapper",
     "render_new_dashboard",
@@ -643,4 +670,5 @@ __all__ = [
     "render_floor_machine_layout_enhanced_with_selection",
     "connection_controls",
     "settings_modal",
+    "delete_confirmation_modal",
 ]
