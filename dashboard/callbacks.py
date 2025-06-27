@@ -704,6 +704,8 @@ def register_callbacks() -> None:
             "base64": True,
         }
 
+    globals()["generate_report_callback"] = generate_report_callback
+
     @_dash_callback(
         Output("settings-modal", "is_open"),
         [
@@ -1171,4 +1173,7 @@ def register_callbacks() -> None:
 
 register_callbacks()
 
-__all__ = ["register_callbacks"]
+__all__ = [
+    "register_callbacks",
+    "generate_report_callback",
+]
