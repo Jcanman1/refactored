@@ -217,6 +217,25 @@ def test_render_new_dashboard_has_weight_store(monkeypatch):
     assert find_weight_store(comp)
 
 
+def test_dashboard_shell_contains_header_and_modal(monkeypatch):
+    _, _, _, layout, _ = load_modules(monkeypatch)
+    comp = layout.render_dashboard_shell()
+
+    def find_by_id(node, target):
+        if getattr(node, "props", {}).get("id") == target:
+            return True
+        children = getattr(node, "children", []) or []
+        if len(children) == 1 and isinstance(children[0], list):
+            children = children[0]
+        for child in children:
+            if find_by_id(child, target):
+                return True
+        return False
+
+    assert find_by_id(comp, "dashboard-title")
+    assert find_by_id(comp, "settings-modal")
+
+
 def test_reconnection_helpers_execute(monkeypatch):
     calls = {}
 
