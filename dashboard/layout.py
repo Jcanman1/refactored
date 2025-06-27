@@ -94,6 +94,7 @@ def render_dashboard_shell() -> Any:
             dcc.Store(id="machines-data", data=machines_data),
             dcc.Store(id="active-machine-store", data={"machine_id": None}),
             header,
+            connection_controls,
             dbc.Row(
                 [
                     dbc.Col(
