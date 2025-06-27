@@ -163,6 +163,17 @@ def register_callbacks() -> None:
         return "new" if current == "main" else "main"
 
     @_dash_callback(
+        Output("historical-time-controls", "className"),
+        Input("mode-selector", "value"),
+        prevent_initial_call=True,
+    )
+    def toggle_historical_controls_visibility(mode):
+        """Show or hide historical controls based on mode."""
+        if mode == "historical":
+            return "d-block"
+        return "d-none"
+
+    @_dash_callback(
         Output("floor-machine-container", "children"),
         Input("machines-data", "data"),
         Input("floors-data", "data"),
