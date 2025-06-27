@@ -75,3 +75,11 @@ def test_manage_dashboard_toggle(monkeypatch):
     assert manage(None, "new") == "new"
     assert manage(1, "new") == "main"
     assert manage(2, "main") == "new"
+
+
+def test_floor_machine_container_populated(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    render = registered["render_floor_machine_layout_cb"]
+
+    comp = render({}, {}, {}, {}, "new", {}, None, "en")
+    assert hasattr(comp, "children")

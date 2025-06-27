@@ -158,6 +158,46 @@ def register_callbacks() -> None:
         return "new" if current == "main" else "main"
 
     @_dash_callback(
+        Output("floor-machine-container", "children"),
+        Input("machines-data", "data"),
+        Input("floors-data", "data"),
+        Input("ip-addresses-store", "data"),
+        Input("additional-image-store", "data"),
+        Input("current-dashboard", "data"),
+        Input("active-machine-store", "data"),
+        Input("app-mode", "data"),
+        Input("language-preference-store", "data"),
+        prevent_initial_call=True,
+    )
+    def render_floor_machine_layout_cb(
+        machines_data,
+        floors_data,
+        ip_addrs,
+        image_data,
+        dashboard,
+        active_machine,
+        app_mode_data,
+        lang,
+    ):
+        """Render the floor/machine management layout when on the new dashboard."""
+        if dashboard != "new":
+            if HAS_DASH:
+                from dash.exceptions import PreventUpdate
+                raise PreventUpdate
+            return no_update
+
+        ctx = callback_context
+        if ctx.triggered:
+            trigger_id = ctx.triggered[0]["prop_id"]
+            if "machines-data" in trigger_id:
+                floors = floors_data.get("floors", []) if isinstance(floors_data, dict) else []
+                for floor in floors:
+                    if floor.get("editing"):
+                        return no_update
+
+        return render_floor_machine_layout_with_customizable_names()
+
+    @_dash_callback(
         Output("section-1-1", "children"),
         Output("production-data-store", "data"),
         Input("current-dashboard", "data"),
