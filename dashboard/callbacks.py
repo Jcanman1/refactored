@@ -526,7 +526,12 @@ def register_callbacks() -> None:
         selected = floors_data.get("selected_floor", "all")
         machines = machines_data.get("machines", [])
         if selected != "all":
-            machines = [m for m in machines if m.get("floor_id") == selected]
+            # Cast IDs to strings to avoid type mismatch when filtering
+            machines = [
+                m
+                for m in machines
+                if str(m.get("floor_id")) == str(selected)
+            ]
         from .settings import load_ip_addresses
 
         data = load_ip_addresses()
