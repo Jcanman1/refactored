@@ -88,6 +88,7 @@ from .layout import (
     render_new_dashboard,
     render_floor_machine_layout_with_customizable_names,
 )
+from .email_utils import send_threshold_email
 from i18n import tr
 from .layout import render_new_dashboard, render_main_dashboard
 
@@ -102,6 +103,7 @@ machine_control_log: list[dict] = []
 threshold_settings = load_threshold_settings() or {}
 production_history: list[float] = []
 counter_history = {i: [] for i in range(1, 13)}
+last_email_times = {i: None for i in range(1, 13)}
 
 
 def _save_floor_machine_data(floors_data: dict, machines_data: dict) -> bool:
@@ -944,12 +946,25 @@ def register_callbacks() -> None:
 
             # Threshold check
             active_alarms = []
+            now = datetime.now()
+            email_enabled = threshold_settings.get("email_enabled")
+            email_minutes = threshold_settings.get("email_minutes", 2)
             for i, val in enumerate(values, 1):
                 settings = threshold_settings.get(i, {})
                 if settings.get("min_enabled") and val < settings.get("min_value", 0):
                     active_alarms.append(f"Sens. {i} below min")
+                    if email_enabled:
+                        last = last_email_times.get(i)
+                        if last is None or (now - last).total_seconds() >= email_minutes * 60:
+                            if send_threshold_email(i, is_high=False):
+                                last_email_times[i] = now
                 if settings.get("max_enabled") and val > settings.get("max_value", 0):
                     active_alarms.append(f"Sens. {i} above max")
+                    if email_enabled:
+                        last = last_email_times.get(i)
+                        if last is None or (now - last).total_seconds() >= email_minutes * 60:
+                            if send_threshold_email(i, is_high=True):
+                                last_email_times[i] = now
 
             fig = go.Figure(go.Bar(x=list(range(1, 13)), y=values))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
