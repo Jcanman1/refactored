@@ -574,8 +574,20 @@ def register_callbacks() -> None:
             ) if values else go.Figure()
             fig2.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
 
-            graph1 = dcc.Graph(figure=fig1, config={"displayModeBar": False})
-            graph2 = dcc.Graph(figure=fig2, config={"displayModeBar": False}) if values else html.Div(tr("no_changes_yet", lang))
+            graph1 = dcc.Graph(
+                figure=fig1,
+                config={"displayModeBar": False},
+                style={"width": "100%", "height": "100%"},
+            )
+            graph2 = (
+                dcc.Graph(
+                    figure=fig2,
+                    config={"displayModeBar": False},
+                    style={"width": "100%", "height": "100%"},
+                )
+                if values
+                else html.Div(tr("no_changes_yet", lang))
+            )
         except Exception:  # pragma: no cover - plotly missing
             graph1 = html.Div(f"{acc_pct:.1f}% / {rej_pct:.1f}%")
             graph2 = html.Div("N/A")
@@ -763,7 +775,11 @@ def register_callbacks() -> None:
             import plotly.graph_objects as go
             fig = go.Figure(go.Scatter(x=list(range(len(production_history))), y=production_history))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
-            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+            graph = dcc.Graph(
+                figure=fig,
+                config={"displayModeBar": False},
+                style={"width": "100%", "height": "100%"},
+            )
         except Exception:  # pragma: no cover - plotly missing
             graph = html.Div(str(val))
         return html.Div([
@@ -794,7 +810,11 @@ def register_callbacks() -> None:
             for i in range(1, 13):
                 fig.add_trace(go.Scatter(x=list(range(len(counter_history[i]))), y=counter_history[i], name=str(i)))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
-            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+            graph = dcc.Graph(
+                figure=fig,
+                config={"displayModeBar": False},
+                style={"width": "100%", "height": "100%"},
+            )
         except Exception:  # pragma: no cover - plotly missing
             graph = html.Div("N/A")
         return html.Div([
@@ -822,7 +842,11 @@ def register_callbacks() -> None:
             import plotly.graph_objects as go
             fig = go.Figure(go.Indicator(mode="gauge+number", value=value, gauge={"axis": {"range": [0, 100]}}))
             fig.update_layout(margin=dict(l=20, r=20, t=30, b=20))
-            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+            graph = dcc.Graph(
+                figure=fig,
+                config={"displayModeBar": False},
+                style={"width": "100%", "height": "100%"},
+            )
         except Exception:  # pragma: no cover - plotly missing
             graph = html.Div(str(value))
         return html.Div([
@@ -863,7 +887,11 @@ def register_callbacks() -> None:
 
             fig = go.Figure(go.Bar(x=list(range(1, 13)), y=values))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
-            return dcc.Graph(figure=fig, config={"displayModeBar": False})
+            return dcc.Graph(
+                figure=fig,
+                config={"displayModeBar": False},
+                style={"width": "100%", "height": "100%"},
+            )
         except Exception:  # pragma: no cover - plotly missing
             return html.Div("N/A")
 
