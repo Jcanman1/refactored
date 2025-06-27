@@ -207,6 +207,18 @@ def render_main_dashboard() -> Any:
     )
 
 
+def render_dashboard_wrapper() -> Any:
+    """Return a wrapper containing dashboard switch controls."""
+
+    return html.Div(
+        [
+            dcc.Store(id="current-dashboard", data="new"),
+            dbc.Button("Toggle Dashboard", id="new-dashboard-btn"),
+            html.Div(id="dashboard-content", children=render_new_dashboard()),
+        ]
+    )
+
+
 def render_floor_machine_layout_with_customizable_names() -> Any:
     """Return a layout for managing floors and machines with editing controls."""
 
@@ -360,6 +372,7 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
 
 
 __all__ = [
+    "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
