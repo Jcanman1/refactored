@@ -8,6 +8,7 @@ from .settings import (
     load_language_preference,
     load_weight_preference,
     load_ip_addresses,
+    load_threshold_settings,
 )
 from i18n import tr
 from .images import load_saved_image
@@ -108,6 +109,7 @@ def render_dashboard_shell() -> Any:
             header,
             connection_controls,
             html.Div(id="dashboard-content"),
+            threshold_modal,
             settings_modal,
             delete_confirmation_modal,
         ]
@@ -614,6 +616,130 @@ connection_controls = dbc.Card(
 )
 
 
+# Form for editing threshold settings
+def create_threshold_settings_form() -> list[Any]:
+    """Return rows of inputs for threshold alarm configuration."""
+    settings = load_threshold_settings() or {}
+    rows = []
+    for i in range(1, 13):
+        data = settings.get(i, {})
+        rows.append(
+            dbc.Row(
+                [
+                    dbc.Col(html.Div(f"Sensitivity {i}:", className="fw-bold"), width=2),
+                    dbc.Col(
+                        dbc.Input(
+                            id={"type": "threshold-min-value", "index": i},
+                            type="number",
+                            value=data.get("min_value", 0),
+                            min=0,
+                            max=180,
+                            step=1,
+                            size="sm",
+                        ),
+                        width=1,
+                    ),
+                    dbc.Col(
+                        dbc.Switch(
+                            id={"type": "threshold-min-enabled", "index": i},
+                            label="Min",
+                            value=data.get("min_enabled", False),
+                            className="medium",
+                        ),
+                        width=2,
+                    ),
+                    dbc.Col(
+                        dbc.Input(
+                            id={"type": "threshold-max-value", "index": i},
+                            type="number",
+                            value=data.get("max_value", 0),
+                            min=0,
+                            max=200,
+                            step=1,
+                            size="sm",
+                        ),
+                        width=1,
+                    ),
+                    dbc.Col(
+                        dbc.Switch(
+                            id={"type": "threshold-max-enabled", "index": i},
+                            label="Max",
+                            value=data.get("max_enabled", False),
+                            className="medium",
+                        ),
+                        width=2,
+                    ),
+                ],
+                className="mb-2",
+            )
+        )
+
+    rows.append(
+        dbc.Row(
+            [
+                dbc.Col(html.Div("Email Notifications:", className="fw-bold"), width=2),
+                dbc.Col(
+                    dbc.Input(
+                        id="threshold-email-address",
+                        type="email",
+                        placeholder="Email address",
+                        value=settings.get("email_address", ""),
+                        size="sm",
+                    ),
+                    width=3,
+                ),
+                dbc.Col(
+                    dbc.InputGroup(
+                        [
+                            dbc.Input(
+                                id="threshold-email-minutes",
+                                type="number",
+                                min=1,
+                                max=60,
+                                step=1,
+                                value=settings.get("email_minutes", 2),
+                                size="sm",
+                            ),
+                            dbc.InputGroupText("min", className="p-1 small"),
+                        ],
+                        size="sm",
+                    ),
+                    width=1,
+                ),
+                dbc.Col(
+                    dbc.Switch(
+                        id="threshold-email-enabled",
+                        value=settings.get("email_enabled", False),
+                        className="medium",
+                    ),
+                    width=2,
+                ),
+            ],
+            className="mt-3 mb-2",
+        )
+    )
+
+    return rows
+
+
+# Modal containing the threshold settings form
+threshold_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(html.Span(tr("threshold_settings_title"), id="threshold-modal-header")),
+        dbc.ModalBody(html.Div(id="threshold-form-container", children=create_threshold_settings_form())),
+        dbc.ModalFooter(
+            [
+                dbc.Button(tr("close"), id="close-threshold-settings", color="secondary", className="me-2"),
+                dbc.Button(tr("save_changes"), id="save-threshold-settings", color="primary"),
+            ]
+        ),
+    ],
+    id="threshold-modal",
+    size="xl",
+    is_open=False,
+)
+
+
 # Simplified settings modal used for configuration
 settings_modal = dbc.Modal(
     [
@@ -669,6 +795,7 @@ __all__ = [
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
     "connection_controls",
+    "threshold_modal",
     "settings_modal",
     "delete_confirmation_modal",
 ]
