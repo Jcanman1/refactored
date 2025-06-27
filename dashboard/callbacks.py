@@ -153,6 +153,15 @@ def _generate_csv_string(tags: dict) -> str:
     return buf.getvalue()
 
 
+def _ordinal_suffix(n: int) -> str:
+    """Return ``n`` with its ordinal suffix."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
 def send_threshold_email(sensitivity_num: int, is_high: bool = True) -> bool:
     """Send an email notification for a threshold violation."""
     try:
@@ -386,7 +395,7 @@ def register_callbacks() -> None:
             return no_update
         floors = list(floors_data.get("floors", []))
         next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
-        floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
+        floors.append({"id": next_id, "name": f"{_ordinal_suffix(next_id)} Floor", "editing": False})
         new_floors = copy.deepcopy(floors_data)
         new_floors["floors"] = floors
         # Select the newly created floor so the machine list starts empty
