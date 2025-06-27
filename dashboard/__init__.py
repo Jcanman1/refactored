@@ -14,7 +14,7 @@ from .opc_client import (
     resume_update_thread,
 )
 from .startup import start_auto_reconnection, delayed_startup_connect
-from .images import load_saved_image
+from .images import load_saved_image, save_uploaded_image
 from .machine_layout import save_layout, load_layout
 from .data_export import (
     initialize_data_saving,
@@ -87,6 +87,7 @@ __all__ = [
     "convert_capacity_from_lbs",
     "capacity_unit_label",
     "load_saved_image",
+    "save_uploaded_image",
     "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_floor_machine_layout_with_customizable_names",
