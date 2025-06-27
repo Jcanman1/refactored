@@ -108,12 +108,27 @@ def render_dashboard_shell() -> Any:
 
 
 def render_new_dashboard() -> Any:
-    """Return the main dashboard layout filled with visible sections."""
-    grid = render_main_dashboard()
+    """Return the floor/machine management view."""
 
     return html.Div(
         [
-            grid,
+            html.Div(id="floor-machine-container", className="px-4 pt-2 pb-4"),
+            html.Div(
+                [
+                    html.Div(id="section-1-1", children=[], style={"display": "none"}),
+                    html.Div(id="section-1-2", children=[], style={"display": "none"}),
+                    html.Div(id="section-2", children=[], style={"display": "none"}),
+                    html.Div(id="section-3-1", children=[], style={"display": "none"}),
+                    html.Div(id="section-3-2", children=[], style={"display": "none"}),
+                    html.Div(id="section-4", children=[], style={"display": "none"}),
+                    html.Div(id="section-5-1", children=[], style={"display": "none"}),
+                    html.Div(id="section-5-2", children=[], style={"display": "none"}),
+                    html.Div(id="section-6-1", children=[], style={"display": "none"}),
+                    html.Div(id="section-6-2", children=[], style={"display": "none"}),
+                    html.Div(id="section-7-1", children=[], style={"display": "none"}),
+                    html.Div(id="section-7-2", children=[], style={"display": "none"}),
+                ]
+            ),
         ]
     )
 
