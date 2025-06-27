@@ -11,6 +11,17 @@ from tests.test_dashboard_utils import load_modules
 
 
 def load_callbacks(monkeypatch):
+    # stub generate_report before importing dashboard package
+    report_mod = ModuleType("generate_report")
+    report_mod.fetch_last_24h_metrics = lambda: {}
+
+    def _build_report(data, path):
+        with open(path, "wb") as fh:
+            fh.write(b"PDF")
+
+    report_mod.build_report = _build_report
+    monkeypatch.setitem(sys.modules, "generate_report", report_mod)
+
     # load core modules and prepare stubs
     legacy, settings, opc_client, layout, startup = load_modules(monkeypatch)
 
@@ -55,6 +66,7 @@ def test_section_callbacks_exist(monkeypatch):
         "update_section_5_1",
         "update_section_6_1",
         "update_section_7_1",
+        "generate_report_callback",
     }
 
     assert expected.issubset(set(registered))
@@ -63,6 +75,8 @@ def test_section_callbacks_exist(monkeypatch):
         func = registered[name]
         params = inspect.signature(func).parameters
         args = [None] * len(params)
+        if name == "generate_report_callback":
+            args = [1]
         result = func(*args)
         comp = result[0] if isinstance(result, tuple) else result
         assert comp is not None

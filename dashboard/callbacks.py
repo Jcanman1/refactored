@@ -6,6 +6,9 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+import base64
+import tempfile
+import generate_report
 
 # ``dash`` is optional during testing so fall back to light stubs when missing.
 try:  # pragma: no cover - optional dependency
@@ -575,6 +578,37 @@ def register_callbacks() -> None:
         resume_update_thread()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return {"content": csv_data, "filename": f"satake_data_export_{timestamp}.csv"}
+
+    @_dash_callback(
+        Output("report-download", "data"),
+        Input("generate-report-btn", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def generate_report_callback(n_clicks):
+        """Generate a PDF report when the button is clicked."""
+        try:
+            from dash.exceptions import PreventUpdate
+        except Exception:  # pragma: no cover - dash missing
+            class PreventUpdate(Exception):
+                pass
+
+        if not n_clicks:
+            raise PreventUpdate
+
+        data = generate_report.fetch_last_24h_metrics()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            generate_report.build_report(data, tmp.name)
+            with open(tmp.name, "rb") as f:
+                pdf_bytes = f.read()
+
+        pdf_b64 = base64.b64encode(pdf_bytes).decode()
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return {
+            "content": pdf_b64,
+            "filename": f"production_report_{timestamp_str}.pdf",
+            "type": "application/pdf",
+            "base64": True,
+        }
 
     @_dash_callback(
         Output("settings-modal", "is_open"),
