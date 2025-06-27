@@ -53,6 +53,12 @@ SECTION_HEIGHT = "220px"
 SECTION_HEIGHT2 = "250px"
 HEADER_CARD_HEIGHT = "65px"
 
+# The taller cards span two standard section heights plus the vertical margin
+# between them.  Derive these values from the base constants so any adjustments
+# remain consistent with the overall grid layout.
+ROW1_TALL_HEIGHT = f"{2 * int(SECTION_HEIGHT[:-2]) + 9}px"
+ROW2_TALL_HEIGHT = f"{2 * int(SECTION_HEIGHT2[:-2]) + 8}px"
+
 
 def render_dashboard_shell() -> Any:
     """Return the root layout with a dashboard switcher."""
@@ -145,7 +151,7 @@ def render_main_dashboard() -> Any:
                 [
                     dbc.Card(
                         dbc.CardBody(id="section-2", className="p-2"),
-                        style={"height": "449px"},
+                        style={"height": ROW1_TALL_HEIGHT},
                     )
                 ],
                 width=3,
@@ -176,7 +182,7 @@ def render_main_dashboard() -> Any:
                     dbc.Card(
                         dbc.CardBody(id="section-4", className="p-2"),
                         className="mb-2",
-                        style={"height": "508px"},
+                        style={"height": ROW2_TALL_HEIGHT},
                     ),
                 ],
                 width=2,
