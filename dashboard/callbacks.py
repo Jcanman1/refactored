@@ -347,28 +347,10 @@ def register_callbacks() -> None:
         ctx = callback_context
         trigger = getattr(ctx, "triggered_id", None)
 
-        if trigger is None:
-            if not ctx.triggered:
-                return no_update
-            prop_id = ctx.triggered[0].get("prop_id")
-            if not prop_id or "floor-tile" not in prop_id:
-                return no_update
-            import json
-            import re
+        if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
+            return no_update
 
-            match = re.search(r"\{[^}]+\}", prop_id)
-            if not match:
-                return no_update
-            try:
-                btn_id = json.loads(match.group())
-                fid = btn_id.get("index")
-            except json.JSONDecodeError:
-                return no_update
-        else:
-            if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
-                return no_update
-            fid = trigger.get("index")
-
+        fid = trigger.get("index")
         if fid is None:
             return no_update
 
@@ -539,10 +521,13 @@ def register_callbacks() -> None:
         if not ip_options:
             ip_options = [{"label": "Default (192.168.0.125)", "value": "192.168.0.125"}]
 
-        cards = [build_machine_card(m, ip_options) for m in machines]
-        if not cards:
-            cards.append(html.Div("No machines configured"))
-        return cards
+        cols = [
+            dbc.Col(build_machine_card(m, ip_options), xs=6, md=4)
+            for m in machines
+        ]
+        if not cols:
+            return html.Div("No machines configured")
+        return dbc.Row(cols)
 
     @_dash_callback(
         Output("machines-data", "data", allow_duplicate=True),

@@ -132,7 +132,8 @@ def test_machine_cards_after_add(monkeypatch):
 
     assert cards is not None
     assert cards != callbacks.no_update
-    assert len(cards) == 1
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
 
 
 def test_floor_selection_updates_selected(monkeypatch):
@@ -152,8 +153,7 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
     select = registered["handle_floor_selection"]
 
     for fid in [1, 2, 3]:
-        prop = f'{{"type":"floor-tile","index":{fid}}}.n_clicks'
-        ctx = SimpleNamespace(triggered=[{"prop_id": prop}])
+        ctx = SimpleNamespace(triggered_id={"type": "floor-tile", "index": fid})
         monkeypatch.setattr(callbacks, "callback_context", ctx)
         data = {"selected_floor": "all"}
         result = select([], [], data)
