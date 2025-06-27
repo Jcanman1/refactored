@@ -160,3 +160,17 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
         data = {"selected_floor": "all"}
         result = select([], [], data)
         assert result["selected_floor"] == fid
+
+
+def test_new_floor_is_selected(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    result = add_floor(1, floors, machines)
+    assert result["selected_floor"] == 2
+    assert any(f.get("id") == 2 for f in result["floors"])

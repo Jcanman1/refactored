@@ -387,6 +387,7 @@ def register_callbacks() -> None:
         next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
         floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
         floors_data["floors"] = floors
+        floors_data["selected_floor"] = next_id
         _save_floor_machine_data(floors_data, machines_data or {})
         return floors_data
 
