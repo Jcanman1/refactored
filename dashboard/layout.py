@@ -5,6 +5,7 @@ from typing import Any
 from .machine_layout import load_layout
 
 from .settings import load_language_preference, load_weight_preference
+from .images import load_saved_image
 
 # ``dash`` is an optional dependency during testing.  These helpers fall
 # back to lightweight stubs when the package is unavailable so that the unit
@@ -121,6 +122,10 @@ def render_new_dashboard() -> Any:
             dcc.Store(
                 id="language-preference-store",
                 data=load_language_preference(),
+            ),
+            dcc.Store(
+                id="additional-image-store",
+                data=load_saved_image(),
             ),
             grid,
         ]
