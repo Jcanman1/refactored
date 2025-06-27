@@ -347,10 +347,23 @@ def register_callbacks() -> None:
         ctx = callback_context
         trigger = getattr(ctx, "triggered_id", None)
 
-        if not isinstance(trigger, dict) or trigger.get("type") != "floor-tile":
-            return no_update
+        fid = None
+        if isinstance(trigger, dict) and trigger.get("type") == "floor-tile":
+            fid = trigger.get("index")
+        elif ctx.triggered:
+            prop = ctx.triggered[0]["prop_id"]
+            if "floor-tile" in prop:
+                import json
+                import re
 
-        fid = trigger.get("index")
+                match = re.search(r"\{[^}]+\}", prop)
+                if match:
+                    try:
+                        info = json.loads(match.group())
+                        fid = info.get("index")
+                    except Exception:
+                        pass
+
         if fid is None:
             return no_update
 
