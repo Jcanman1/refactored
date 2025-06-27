@@ -8,10 +8,10 @@ from datetime import datetime
 from pathlib import Path
 import base64
 import tempfile
-try:
-    import generate_report
-except Exception:  # pragma: no cover - missing dependency
-    generate_report = None  # type: ignore
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import generate_report
 
 # ``dash`` is optional during testing so fall back to light stubs when missing.
 try:  # pragma: no cover - optional dependency
@@ -89,13 +89,15 @@ from .settings import (
     convert_capacity_from_kg,
     capacity_unit_label,
     load_threshold_settings,
-    save_threshold_settings,
+    load_email_settings,
+
 )
 from .layout import (
     render_new_dashboard,
     render_floor_machine_layout_with_customizable_names,
 )
-from .email_utils import send_threshold_email
+
+
 from i18n import tr
 from .layout import render_new_dashboard, render_main_dashboard
 
@@ -111,6 +113,14 @@ threshold_settings = load_threshold_settings() or {}
 production_history: list[float] = []
 counter_history = {i: [] for i in range(1, 13)}
 last_email_times = {i: None for i in range(1, 13)}
+threshold_violation_state = {
+    i: {
+        "is_violating": False,
+        "violation_start_time": None,
+        "email_sent": False,
+    }
+    for i in range(1, 13)
+}
 
 
 def _save_floor_machine_data(floors_data: dict, machines_data: dict) -> bool:
@@ -141,6 +151,51 @@ def _generate_csv_string(tags: dict) -> str:
     return buf.getvalue()
 
 
+def send_threshold_email(sensitivity_num: int, is_high: bool = True) -> bool:
+    """Send an email notification for a threshold violation."""
+    try:
+        email_address = threshold_settings.get("email_address", "")
+        if not email_address:
+            logger.warning("No email address configured for notifications")
+            return False
+
+        msg = MIMEMultipart()
+        msg["Subject"] = "Enpresor Alarm"
+        msg["From"] = "jcantu@satake-usa.com"
+        msg["To"] = email_address
+
+        threshold_type = "upper" if is_high else "lower"
+        body = (
+            f"Sensitivity {sensitivity_num} has reached the {threshold_type} threshold."
+        )
+        msg.attach(MIMEText(body, "plain"))
+
+        logger.info(f"Sending email to {email_address}: {body}")
+
+        email_settings = load_email_settings()
+        server_addr = email_settings.get(
+            "smtp_server", DEFAULT_EMAIL_SETTINGS["smtp_server"]
+        )
+        port = email_settings.get("smtp_port", DEFAULT_EMAIL_SETTINGS["smtp_port"])
+        server = smtplib.SMTP(server_addr, port)
+        server.starttls()
+        username = email_settings.get("smtp_username")
+        password = email_settings.get("smtp_password")
+        if username and password:
+            server.login(username, password)
+
+        from_addr = email_settings.get(
+            "from_address", DEFAULT_EMAIL_SETTINGS["from_address"]
+        )
+        text = msg.as_string()
+        server.sendmail(from_addr, email_address, text)
+        server.quit()
+        return True
+    except Exception as e:  # pragma: no cover - just log
+        logger.error(f"Error sending threshold email: {e}")
+        return False
+
+
 def register_callbacks() -> None:
     """Register core callbacks with the Dash app."""
 
@@ -165,6 +220,17 @@ def register_callbacks() -> None:
         if n_clicks is None:
             return "new"
         return "new" if current == "main" else "main"
+
+    @_dash_callback(
+        Output("historical-time-controls", "className"),
+        Input("mode-selector", "value"),
+        prevent_initial_call=True,
+    )
+    def toggle_historical_controls_visibility(mode):
+        """Show or hide historical controls based on mode."""
+        if mode == "historical":
+            return "d-block"
+        return "d-none"
 
     @_dash_callback(
         Output("floor-machine-container", "children"),
@@ -654,6 +720,8 @@ def register_callbacks() -> None:
             "base64": True,
         }
 
+    globals()["generate_report_callback"] = generate_report_callback
+
     @_dash_callback(
         Output("settings-modal", "is_open"),
         [
@@ -927,6 +995,47 @@ def register_callbacks() -> None:
         ])
 
     @_dash_callback(
+        Output("upload-modal", "is_open"),
+        [Input("load-additional-image", "n_clicks"), Input("close-upload-modal", "n_clicks")],
+        [State("upload-modal", "is_open")],
+        prevent_initial_call=True,
+    )
+    def toggle_upload_modal(load_clicks, close_clicks, is_open):
+        """Show or hide the upload modal."""
+
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger_id == "load-additional-image" and load_clicks and not is_open:
+            return True
+        if trigger_id == "close-upload-modal" and close_clicks and is_open:
+            return False
+        return is_open
+
+    @_dash_callback(
+        Output("additional-image-store", "data"),
+        Output("upload-status", "children"),
+        Input("upload-image", "contents"),
+        State("upload-image", "filename"),
+        prevent_initial_call=True,
+    )
+    def process_uploaded_image(contents, filename):
+        """Handle an uploaded image and persist it."""
+
+        if contents is None:
+            return no_update, no_update
+        try:
+            logger.info("Processing image upload: %s", filename)
+            new_data = {"image": contents}
+            save_success = save_uploaded_image(contents)
+            logger.info("Image save result: %s", save_success)
+            return new_data, html.Div(f"Uploaded: {filename}", className="text-success")
+        except Exception as exc:  # pragma: no cover - unexpected errors
+            logger.error("Error uploading image: %s", exc)
+            return no_update, html.Div(f"Error uploading image: {exc}", className="text-danger")
+
+    @_dash_callback(
         Output("section-4", "children"),
         Input("status-update-interval", "n_intervals"),
         State("language-preference-store", "data"),
@@ -1082,20 +1191,34 @@ def register_callbacks() -> None:
             email_minutes = threshold_settings.get("email_minutes", 2)
             for i, val in enumerate(values, 1):
                 settings = threshold_settings.get(i, {})
+                violation = False
+                is_high = False
                 if settings.get("min_enabled") and val < settings.get("min_value", 0):
                     active_alarms.append(f"Sens. {i} below min")
-                    if email_enabled:
-                        last = last_email_times.get(i)
-                        if last is None or (now - last).total_seconds() >= email_minutes * 60:
-                            if send_threshold_email(i, is_high=False):
-                                last_email_times[i] = now
-                if settings.get("max_enabled") and val > settings.get("max_value", 0):
+                    violation = True
+                elif settings.get("max_enabled") and val > settings.get("max_value", 0):
                     active_alarms.append(f"Sens. {i} above max")
-                    if email_enabled:
-                        last = last_email_times.get(i)
-                        if last is None or (now - last).total_seconds() >= email_minutes * 60:
-                            if send_threshold_email(i, is_high=True):
-                                last_email_times[i] = now
+                    violation = True
+                    is_high = True
+
+                state = threshold_violation_state[i]
+                if email_enabled:
+                    if violation and not state["is_violating"]:
+                        state["is_violating"] = True
+                        state["violation_start_time"] = now
+                        state["email_sent"] = False
+                    elif violation and state["is_violating"]:
+                        if not state["email_sent"]:
+                            elapsed = (
+                                now - state["violation_start_time"]
+                            ).total_seconds()
+                            if elapsed >= email_minutes * 60:
+                                if send_threshold_email(i, is_high=is_high):
+                                    state["email_sent"] = True
+                    elif not violation and state["is_violating"]:
+                        state["is_violating"] = False
+                        state["violation_start_time"] = None
+                        state["email_sent"] = False
 
             fig = go.Figure(go.Bar(x=list(range(1, 13)), y=values))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
@@ -1162,4 +1285,7 @@ def register_callbacks() -> None:
 
 register_callbacks()
 
-__all__ = ["register_callbacks"]
+__all__ = [
+    "register_callbacks",
+    "generate_report_callback",
+]

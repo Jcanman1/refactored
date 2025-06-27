@@ -111,6 +111,7 @@ def render_dashboard_shell() -> Any:
             html.Div(id="dashboard-content"),
             threshold_modal,
             settings_modal,
+            upload_modal,
             delete_confirmation_modal,
         ]
     )
@@ -763,6 +764,42 @@ settings_modal = dbc.Modal(
 )
 
 
+# Modal for uploading a custom image
+upload_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(html.Span(tr("upload_image_title"), id="upload-modal-header")),
+        dbc.ModalBody(
+            [
+                dcc.Upload(
+                    id="upload-image",
+                    children=html.Div([
+                        tr("drag_and_drop"),
+                        html.A(tr("select_image")),
+                    ]),
+                    style={
+                        "width": "100%",
+                        "height": "60px",
+                        "lineHeight": "60px",
+                        "borderWidth": "1px",
+                        "borderStyle": "dashed",
+                        "borderRadius": "5px",
+                        "textAlign": "center",
+                        "margin": "10px",
+                    },
+                    multiple=False,
+                ),
+                html.Div(id="upload-status"),
+            ]
+        ),
+        dbc.ModalFooter(
+            [dbc.Button(tr("close"), id="close-upload-modal", color="secondary")]
+        ),
+    ],
+    id="upload-modal",
+    is_open=False,
+)
+
+
 # Confirmation modal displayed before deleting a floor or machine
 delete_confirmation_modal = dbc.Modal(
     [
@@ -797,5 +834,6 @@ __all__ = [
     "connection_controls",
     "threshold_modal",
     "settings_modal",
+    "upload_modal",
     "delete_confirmation_modal",
 ]

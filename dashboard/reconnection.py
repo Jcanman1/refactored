@@ -114,8 +114,24 @@ def load_saved_image():
         logger.error("Error loading custom image: %s", exc)
         return {}
 
+
+def save_uploaded_image(image_data: str) -> bool:
+    """Persist ``image_data`` to :mod:`data/custom_image.txt`."""
+
+    path = Path(__file__).resolve().parents[1] / "data" / "custom_image.txt"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as fh:
+            fh.write(image_data)
+        logger.info("Custom image saved successfully")
+        return True
+    except Exception as exc:  # pragma: no cover - rely on filesystem
+        logger.error("Error saving custom image: %s", exc)
+        return False
+
 __all__ = [
     "start_auto_reconnection",
     "delayed_startup_connect",
     "load_saved_image",
+    "save_uploaded_image",
 ]
