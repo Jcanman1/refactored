@@ -245,8 +245,8 @@ def test_dashboard_shell_contains_header_and_modal(monkeypatch):
 def test_reconnection_helpers_execute(monkeypatch):
     calls = {}
 
-    async def fake_connect(url, server_name=None):
-        calls["connect"] = url
+    async def fake_connect(ip, machine_id, server_name=None, timeout=5):
+        calls.setdefault("connect", []).append((ip, machine_id))
         return True
 
     def fake_run_async(coro):
@@ -258,11 +258,12 @@ def test_reconnection_helpers_execute(monkeypatch):
 
     state_obj = SimpleNamespace(thread_stop_flag=False)
     patches = {
-        "connect_to_server": fake_connect,
+        "connect_and_monitor_machine_with_timeout": fake_connect,
         "run_async": fake_run_async,
         "resume_update_thread": lambda: None,
         "time": types.SimpleNamespace(sleep=lambda x: None),
         "app_state": state_obj,
+        "load_ip_addresses": lambda: {"addresses": [{"ip": "1.2.3.4", "label": "A"}]},
     }
 
     legacy, _, _, _, startup = load_modules(monkeypatch, src_patches=patches)
@@ -275,8 +276,7 @@ def test_reconnection_helpers_execute(monkeypatch):
         thread.join(timeout=0.1)
 
     startup.delayed_startup_connect()
-
-    assert calls["connect"] == "opc.tcp://example:4840"
+    assert calls["connect"] == [("1.2.3.4", "A")]
 
 
 def test_floor_layout_has_hidden_sections(monkeypatch):

@@ -210,6 +210,13 @@ def resume_update_thread() -> None:
         app_state.update_thread.start()
 
 
+# Dictionary tracking connections to individual machines when using
+# the multi-machine reconnection helpers.  The keys are machine
+# identifiers and the values contain the connected client instance,
+# discovered tags and basic metadata.
+machine_connections: Dict[str, Dict[str, Any]] = {}
+
+
 async def connect_to_server(server_url: str, server_name: str | None = None) -> bool:
     """Connect to the OPC UA server."""
     try:
@@ -263,6 +270,95 @@ async def disconnect_from_server() -> bool:
     except Exception as exc:  # pragma: no cover - rely on opcua behaviour
         logger.error("Disconnection error: %s", exc)
         return False
+
+
+async def connect_and_monitor_machine_with_timeout(
+    ip_address: str,
+    machine_id: str,
+    server_name: str | None = None,
+    timeout: int = 10,
+) -> bool:
+    """Connect to ``ip_address`` with a shorter session timeout."""
+
+    try:
+        server_url = f"opc.tcp://{ip_address}:4840"
+
+        client = Client(server_url)
+        client.set_session_timeout(timeout * 1000)
+
+        if server_name:
+            client.application_uri = f"urn:{server_name}"
+
+        client.connect()
+
+        machine_tags: Dict[str, Any] = {}
+        essential = [t for t in FAST_UPDATE_TAGS if t in KNOWN_TAGS]
+
+        for tag_name in essential:
+            node_id = KNOWN_TAGS[tag_name]
+            try:
+                node = client.get_node(node_id)
+                value = node.get_value()
+                tag_data = TagData(tag_name)
+                tag_data.add_value(value)
+                machine_tags[tag_name] = {"node": node, "data": tag_data}
+            except Exception:
+                continue
+
+        if machine_tags:
+            asyncio.create_task(
+                complete_tag_discovery(client, machine_id, machine_tags)
+            )
+
+            machine_connections[machine_id] = {
+                "client": client,
+                "tags": machine_tags,
+                "ip": ip_address,
+                "connected": True,
+                "last_update": datetime.now(),
+                "failure_count": 0,
+            }
+
+            return True
+
+        client.disconnect()
+        return False
+
+    except Exception as exc:  # pragma: no cover - network dependent
+        logger.debug(
+            "Auto-reconnection failed for machine %s at %s: %s",
+            machine_id,
+            ip_address,
+            exc,
+        )
+        return False
+
+
+async def complete_tag_discovery(
+    client: Client, machine_id: str, existing_tags: Dict[str, Any]
+) -> None:
+    """Discover any remaining FAST_UPDATE_TAGS for ``client``."""
+
+    try:
+        for tag_name, node_id in KNOWN_TAGS.items():
+            if tag_name not in existing_tags and tag_name in FAST_UPDATE_TAGS:
+                try:
+                    node = client.get_node(node_id)
+                    value = node.get_value()
+                    tag_data = TagData(tag_name)
+                    tag_data.add_value(value)
+                    existing_tags[tag_name] = {"node": node, "data": tag_data}
+                except Exception:
+                    continue
+        logger.info(
+            "Completed tag discovery for auto-reconnected machine %s: %d tags",
+            machine_id,
+            len(existing_tags),
+        )
+    except Exception as exc:  # pragma: no cover - network dependent
+        logger.debug(
+            "Error in background tag discovery for machine %s: %s", machine_id, exc
+        )
 
 
 async def discover_tags() -> bool:
@@ -436,6 +532,9 @@ async def discover_all_tags(client: Client) -> Dict[str, Any]:
 __all__ = [
     "connect_to_server",
     "disconnect_from_server",
+    "connect_and_monitor_machine_with_timeout",
+    "complete_tag_discovery",
+    "machine_connections",
     "discover_tags",
     "debug_discovered_tags",
     "discover_all_tags",
