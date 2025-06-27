@@ -272,3 +272,26 @@ def test_reconnection_helpers_execute(monkeypatch):
 
     assert calls["connect"] == "opc.tcp://example:4840"
 
+
+def test_floor_layout_has_hidden_sections(monkeypatch):
+    _, _, _, layout, _ = load_modules(monkeypatch)
+    comp = layout.render_floor_machine_layout_with_customizable_names()
+
+    ids = set()
+
+    def gather(node):
+        ident = getattr(node, "props", {}).get("id")
+        if isinstance(ident, dict):
+            ident = str(ident)
+        if ident:
+            ids.add(ident)
+        children = getattr(node, "children", []) or []
+        if len(children) == 1 and isinstance(children[0], list):
+            children = children[0]
+        for child in children:
+            gather(child)
+
+    gather(comp)
+
+    assert "section-1-1" in ids
+    assert "section-7-2" in ids
