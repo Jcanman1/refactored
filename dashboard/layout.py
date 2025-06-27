@@ -374,6 +374,8 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
         fid = floor.get("id")
         fname = floor.get("name", f"Floor {fid}")
         is_selected = fid == selected_floor and selected_floor != "all"
+        is_editing = floor.get("editing", False)
+
         floor_style = {
             "backgroundColor": "#007bff" if is_selected else "#696969",
             "color": "white" if is_selected else "black",
@@ -382,47 +384,82 @@ def render_floor_machine_layout_with_customizable_names() -> Any:
             "borderRadius": "0.375rem",
         }
 
-        content = dbc.Row(
-            [
-                dbc.Col(
+        if is_editing:
+            content = dbc.InputGroup(
+                [
                     dbc.Button(
                         "×",
                         id={"type": "delete-floor-btn", "index": fid},
                         color="danger",
-                        size="md",
-                        className="delete-floor-btn",
-                        style={"fontSize": "1rem"},
+                        size="sm",
+                        className="delete-floor-btn delete-floor-btn-inline",
+                        style={"fontSize": "0.8rem"},
                         title=f"Delete {fname}",
                     ),
-                    width=1,
-                    className="pe-1",
-                ),
-                dbc.Col(
-                    dbc.Button(
-                        fname,
-                        id={"type": "floor-tile", "index": fid},
-                        n_clicks=0,
-                        style=floor_style,
-                        className="w-100 floor-tile-btn",
-                        size="lg",
+                    dbc.Input(
+                        id={"type": "floor-name-input", "index": fid},
+                        value=fname,
+                        size="sm",
+                        style={"fontSize": "0.9rem"},
                     ),
-                    width=9,
-                    className="px-1",
-                ),
-                dbc.Col(
                     dbc.Button(
-                        "✏️",
-                        id={"type": "edit-floor-name-btn", "index": fid},
-                        color="light",
-                        size="lg",
-                        className="w-100 edit-floor-name-btn",
+                        "✓",
+                        id={"type": "save-floor-name-btn", "index": fid},
+                        color="success",
+                        size="sm",
+                        style={"padding": "0.25rem 0.5rem"},
                     ),
-                    width=2,
-                    className="ps-1",
-                ),
-            ],
-            className="g-0 align-items-center",
-        )
+                    dbc.Button(
+                        "✗",
+                        id={"type": "cancel-floor-name-btn", "index": fid},
+                        color="secondary",
+                        size="sm",
+                        style={"padding": "0.25rem 0.5rem"},
+                    ),
+                ]
+            )
+        else:
+            content = dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            "×",
+                            id={"type": "delete-floor-btn", "index": fid},
+                            color="danger",
+                            size="md",
+                            className="delete-floor-btn",
+                            style={"fontSize": "1rem"},
+                            title=f"Delete {fname}",
+                        ),
+                        width=1,
+                        className="pe-1",
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            fname,
+                            id={"type": "floor-tile", "index": fid},
+                            n_clicks=0,
+                            style=floor_style,
+                            className="w-100 floor-tile-btn",
+                            size="lg",
+                        ),
+                        width=9,
+                        className="px-1",
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            "✏️",
+                            id={"type": "edit-floor-name-btn", "index": fid},
+                            color="light",
+                            size="lg",
+                            className="w-100 edit-floor-name-btn",
+                        ),
+                        width=2,
+                        className="ps-1",
+                    ),
+                ],
+                className="g-0 align-items-center",
+            )
         left_sidebar_buttons.append(html.Div(content, className="mb-2"))
 
     left_sidebar_buttons.append(
