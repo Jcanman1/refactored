@@ -174,3 +174,24 @@ def test_new_floor_is_selected(monkeypatch):
     result = add_floor(1, floors, machines)
     assert result["selected_floor"] == 2
     assert any(f.get("id") == 2 for f in result["floors"])
+
+
+def test_machine_filter_by_floor(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_machine = registered["add_machine_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {
+        "floors": [{"id": 1, "name": "F1"}, {"id": 2, "name": "F2"}],
+        "selected_floor": 2,
+    }
+    machines = {"machines": []}
+
+    machines = add_machine(1, machines, floors)
+    machines["machines"].append({"id": 99, "floor_id": 1, "name": "M99"})
+
+    cards = render_cards(floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    assert len(children) == 1
