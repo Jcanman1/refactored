@@ -22,8 +22,10 @@ def test_button_present_for_selected_floor(monkeypatch):
     floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
     machines = {"machines": []}
     _, _, _, layout, _ = load_modules(monkeypatch)
-    monkeypatch.setattr(layout, "load_layout", lambda: (floors, machines))
-    comp = layout.render_floor_machine_layout_with_customizable_names()
+    comp = layout.render_floor_machine_layout_with_customizable_names(
+        floors_data=floors,
+        machines_data=machines,
+    )
     assert _find_by_id(comp, "add-machine-btn")
 
 
@@ -31,6 +33,8 @@ def test_button_absent_for_all(monkeypatch):
     floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": "all"}
     machines = {"machines": []}
     _, _, _, layout, _ = load_modules(monkeypatch)
-    monkeypatch.setattr(layout, "load_layout", lambda: (floors, machines))
-    comp = layout.render_floor_machine_layout_with_customizable_names()
+    comp = layout.render_floor_machine_layout_with_customizable_names(
+        floors_data=floors,
+        machines_data=machines,
+    )
     assert not _find_by_id(comp, "add-machine-btn")

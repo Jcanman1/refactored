@@ -270,7 +270,10 @@ def register_callbacks() -> None:
                     if floor.get("editing"):
                         return no_update
 
-        return render_floor_machine_layout_with_customizable_names()
+        return render_floor_machine_layout_with_customizable_names(
+            floors_data=floors_data,
+            machines_data=machines_data,
+        )
 
     @_dash_callback(
         Output("section-1-1", "children"),
