@@ -311,3 +311,34 @@ def test_add_machine_does_not_change_selected_floor(monkeypatch):
     assert len(children) == 1
 
 
+def test_floor_selection_ignores_zero_click(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    select = registered["handle_floor_selection"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    floors2 = add_floor(1, floors, machines)
+    new_id = floors2["selected_floor"]
+
+    prop = json.dumps({"type": "floor-tile", "index": new_id}) + ".n_clicks"
+    ctx = SimpleNamespace(triggered=[{"prop_id": prop, "value": 0}], triggered_id=None)
+    monkeypatch.setattr(callbacks, "callback_context", ctx)
+
+    result = select([], [], floors2)
+
+    assert result == callbacks.no_update
+    assert floors2["selected_floor"] == new_id
+
+    cards = render_cards(floors2, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    if isinstance(children, (list, tuple)):
+        assert children[0] == "No machines configured"
+    else:
+        assert children == "No machines configured"
+
+
