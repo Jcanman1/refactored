@@ -91,6 +91,7 @@ from .settings import (
     capacity_unit_label,
     load_threshold_settings,
     load_email_settings,
+    load_language_preference,
 
 )
 from .layout import (
@@ -572,7 +573,8 @@ def register_callbacks() -> None:
         if fid == "all":
             floors = floors_data.get("floors", [])
             fid = floors[0]["id"] if floors else 1
-        machines.append({"id": next_id, "floor_id": fid, "name": f"Machine {next_id}"})
+        name = f"{tr('machine_label', load_language_preference())} {next_id}"
+        machines.append({"id": next_id, "floor_id": fid, "name": name})
         new_machines = copy.deepcopy(machines_data)
         new_machines["machines"] = machines
         new_machines["next_machine_id"] = next_id + 1
