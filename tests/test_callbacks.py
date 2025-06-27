@@ -136,6 +136,8 @@ def test_machine_cards_after_add(monkeypatch):
     assert cards is not None
     assert cards != callbacks.no_update
     children = cards.children if hasattr(cards, "children") else cards[1]
+    if len(children) == 1 and isinstance(children[0], (list, tuple)):
+        children = children[0]
     assert len(children) == 2
 
 
@@ -208,6 +210,8 @@ def test_machine_filter_by_floor(monkeypatch):
 
     cards = render_cards(floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
+    if len(children) == 1 and isinstance(children[0], (list, tuple)):
+        children = children[0]
     assert len(children) == 2
 
 
@@ -227,6 +231,8 @@ def test_add_floor_then_machine_filters(monkeypatch):
 
     cards = render_cards(new_floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
+    if len(children) == 1 and isinstance(children[0], (list, tuple)):
+        children = children[0]
     assert len(children) == 2
     assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
 
@@ -280,6 +286,8 @@ def test_add_floor_add_machine_from_all(monkeypatch):
 
     cards = render_cards(new_floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
+    if len(children) == 1 and isinstance(children[0], (list, tuple)):
+        children = children[0]
     assert len(children) == 2
     assert machines["machines"][0]["floor_id"] == new_floors["selected_floor"]
 
@@ -308,6 +316,8 @@ def test_add_machine_does_not_change_selected_floor(monkeypatch):
 
     cards = render_cards(floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
+    if len(children) == 1 and isinstance(children[0], (list, tuple)):
+        children = children[0]
     assert len(children) == 2
 
 
