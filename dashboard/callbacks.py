@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 from datetime import datetime
 from pathlib import Path
 
@@ -73,6 +72,7 @@ from .settings import (
     DEFAULT_EMAIL_SETTINGS,
     convert_capacity_from_kg,
     capacity_unit_label,
+    load_threshold_settings,
 )
 from i18n import tr
 
@@ -80,6 +80,11 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 LAYOUT_PATH = DATA_DIR / "floor_machine_layout.json"
+
+previous_counter_values = [0] * 12
+active_alarms: list[str] = []
+machine_control_log: list[dict] = []
+threshold_settings = load_threshold_settings() or {}
 
 
 def _save_floor_machine_data(floors_data: dict, machines_data: dict) -> bool:
@@ -125,21 +130,48 @@ def register_callbacks() -> None:
         """Update capacity display using latest OPC tag values."""
         pref = weight_pref or {"unit": "lb", "label": "lbs", "value": 1.0}
         lang = lang or "en"
-        capacity_tag = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
-        capacity_val = None
-        if app_state.connected and capacity_tag in app_state.tags:
-            capacity_val = app_state.tags[capacity_tag]["data"].latest_value
-        if capacity_val is None:
-            capacity_val = 0
-        total_capacity = convert_capacity_from_kg(capacity_val, pref)
+
+        cap_tag = "Status.ColorSort.Sort1.Throughput.KgPerHour.Current"
+        acc_tag = "Status.Production.Accepts"
+        rej_tag = "Status.Production.Rejects"
+
+        cap_val = acc_val = rej_val = 0
+        if app_state.connected:
+            if cap_tag in app_state.tags:
+                val = app_state.tags[cap_tag]["data"].latest_value
+                cap_val = val if val is not None else 0
+            if acc_tag in app_state.tags:
+                val = app_state.tags[acc_tag]["data"].latest_value
+                acc_val = val if val is not None else 0
+            if rej_tag in app_state.tags:
+                val = app_state.tags[rej_tag]["data"].latest_value
+                rej_val = val if val is not None else 0
+
+        total_capacity = convert_capacity_from_kg(cap_val, pref)
+        accepts = convert_capacity_from_kg(acc_val, pref)
+        rejects = convert_capacity_from_kg(rej_val, pref)
+
+        total = accepts + rejects
+        acc_pct = accepts / total * 100 if total else 0
+        rej_pct = rejects / total * 100 if total else 0
+
         data = production_data or {}
-        data.update({"capacity": total_capacity})
+        data.update({"capacity": total_capacity, "accepts": accepts, "rejects": rejects})
+
         content = html.Div(
             [
-                html.H6(tr("production_capacity_title", lang)),
+                html.H6(tr("production_capacity_title", lang), className="text-left mb-2"),
                 html.Div(
                     f"{total_capacity:,.0f} {capacity_unit_label(pref)}",
                     className="fw-bold",
+                ),
+                html.Div(
+                    f"{tr('accepts', lang)}: {accepts:,.0f} {capacity_unit_label(pref, False)} ({acc_pct:.1f}%)",
+                    className="small",
+                ),
+                html.Div(
+                    f"{tr('rejects', lang)}: {rejects:,.0f} {capacity_unit_label(pref, False)} ({rej_pct:.1f}%)",
+                    className="small",
                 ),
             ]
         )
@@ -386,22 +418,40 @@ def register_callbacks() -> None:
     )
     def update_section_1_2(n, prod_data, lang):
         lang = lang or "en"
-        accepts = (prod_data or {}).get("accepts", 47500)
-        rejects = (prod_data or {}).get("rejects", 2500)
+        accepts = (prod_data or {}).get("accepts", 0)
+        rejects = (prod_data or {}).get("rejects", 0)
         total = accepts + rejects
         acc_pct = accepts / total * 100 if total else 0
         rej_pct = rejects / total * 100 if total else 0
+
+        global previous_counter_values
+
         try:
             import plotly.graph_objects as go
 
-            fig = go.Figure(
+            fig1 = go.Figure(
                 data=[go.Pie(labels=[tr("accepts", lang), tr("rejects", lang)], values=[accepts, rejects], hole=0.4)]
             )
-            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
-            graph = dcc.Graph(figure=fig, config={"displayModeBar": False})
+            fig1.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
+
+            total_counter = sum(previous_counter_values)
+            labels = [str(i) for i, v in enumerate(previous_counter_values, 1) if v > 0]
+            values = [v / total_counter * 100 for v in previous_counter_values if v > 0] if total_counter else []
+            fig2 = go.Figure(
+                data=[go.Pie(labels=labels, values=values, hole=0.4)]
+            ) if values else go.Figure()
+            fig2.update_layout(margin=dict(l=10, r=10, t=20, b=20), showlegend=False)
+
+            graph1 = dcc.Graph(figure=fig1, config={"displayModeBar": False})
+            graph2 = dcc.Graph(figure=fig2, config={"displayModeBar": False}) if values else html.Div(tr("no_changes_yet", lang))
         except Exception:  # pragma: no cover - plotly missing
-            graph = html.Div(f"{acc_pct:.1f}% / {rej_pct:.1f}%")
-        return html.Div([graph])
+            graph1 = html.Div(f"{acc_pct:.1f}% / {rej_pct:.1f}%")
+            graph2 = html.Div("N/A")
+
+        return html.Div([
+            html.Div(graph1, className="col-6"),
+            html.Div(graph2, className="col-6"),
+        ], className="row")
 
     @_dash_callback(
         Output("section-3-2", "children"),
@@ -410,9 +460,23 @@ def register_callbacks() -> None:
     )
     def update_section_3_2(n, lang):
         lang = lang or "en"
+        serial_tag = "Status.Info.Serial"
+        model_tag = "Status.Info.Type"
+
+        serial = model = ""
+        if app_state.connected:
+            if serial_tag in app_state.tags:
+                val = app_state.tags[serial_tag]["data"].latest_value
+                serial = val if val is not None else ""
+            if model_tag in app_state.tags:
+                val = app_state.tags[model_tag]["data"].latest_value
+                model = val if val is not None else ""
+
         status_text = tr("good_status", lang) if app_state.connected else tr("fault_status", lang)
         return html.Div([
             html.H6(tr("machine_info_title", lang)),
+            html.Div(f"{tr('serial_number_label', lang)} {serial}"),
+            html.Div(f"{tr('model_label', lang)} {model}"),
             html.Div(f"Status: {status_text}"),
         ])
 
@@ -421,11 +485,33 @@ def register_callbacks() -> None:
         Input("status-update-interval", "n_intervals"),
     )
     def update_section_5_2(n):
+        global previous_counter_values, active_alarms
         try:
             import plotly.graph_objects as go
 
-            counts = [random.randint(10, 100) for _ in range(12)]
-            fig = go.Figure(go.Bar(x=list(range(1, 13)), y=counts))
+            TAG_PATTERN = "Status.ColorSort.Sort1.DefectCount{}.Rate.Current"
+            values = []
+            for i in range(1, 13):
+                tag = TAG_PATTERN.format(i)
+                val = previous_counter_values[i - 1]
+                if app_state.connected and tag in app_state.tags:
+                    new_val = app_state.tags[tag]["data"].latest_value
+                    if new_val is not None:
+                        val = new_val
+                values.append(val)
+
+            previous_counter_values = values
+
+            # Threshold check
+            active_alarms = []
+            for i, val in enumerate(values, 1):
+                settings = threshold_settings.get(i, {})
+                if settings.get("min_enabled") and val < settings.get("min_value", 0):
+                    active_alarms.append(f"Sens. {i} below min")
+                if settings.get("max_enabled") and val > settings.get("max_value", 0):
+                    active_alarms.append(f"Sens. {i} above max")
+
+            fig = go.Figure(go.Bar(x=list(range(1, 13)), y=values))
             fig.update_layout(margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
             return dcc.Graph(figure=fig, config={"displayModeBar": False})
         except Exception:  # pragma: no cover - plotly missing
@@ -438,9 +524,25 @@ def register_callbacks() -> None:
     )
     def update_section_6_2(n, lang):
         lang = lang or "en"
+        alarms = active_alarms
+
+        if alarms:
+            mid = len(alarms) // 2 + len(alarms) % 2
+            left = [html.Li(a, className="text-danger mb-1") for a in alarms[:mid]]
+            right = [html.Li(a, className="text-danger mb-1") for a in alarms[mid:]]
+            alarm_display = html.Div([
+                html.Div(tr("active_alarms_title", lang), className="fw-bold text-danger mb-2"),
+                html.Div([
+                    html.Ul(left, className="ps-3 mb-0 col-6"),
+                    html.Ul(right, className="ps-3 mb-0 col-6"),
+                ], className="row"),
+            ])
+        else:
+            alarm_display = html.Div(tr("no_changes_yet", lang), className="text-success")
+
         return html.Div([
             html.H6(tr("sensitivity_threshold_alarms_title", lang)),
-            html.Div(tr("no_changes_yet", lang)),
+            alarm_display,
         ])
 
     @_dash_callback(
@@ -450,9 +552,19 @@ def register_callbacks() -> None:
     )
     def update_section_7_2(n, lang):
         lang = lang or "en"
+        entries = machine_control_log[:20]
+        rows = []
+        for idx, entry in enumerate(entries, start=1):
+            ts = entry.get("timestamp", "")
+            desc = f"{entry.get('tag', '')} {entry.get('action', '')}".strip()
+            if desc:
+                rows.append(html.Div(f"{idx}. {desc} {ts}", className="mb-1 small"))
+        if not rows:
+            rows.append(html.Div(tr("no_changes_yet", lang), className="text-muted"))
+
         return html.Div([
             html.H6(tr("machine_control_log_title", lang)),
-            html.Div(tr("no_changes_yet", lang)),
+            *rows,
         ])
 
 
