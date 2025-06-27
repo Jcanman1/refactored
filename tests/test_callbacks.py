@@ -157,7 +157,7 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
 
     for fid in [1, 2, 3]:
         prop = json.dumps({"type": "floor-tile", "index": fid}) + ".n_clicks"
-        ctx = SimpleNamespace(triggered=[{"prop_id": prop}], triggered_id=None)
+        ctx = SimpleNamespace(triggered=[{"prop_id": prop, "value": 1}], triggered_id=None)
         monkeypatch.setattr(callbacks, "callback_context", ctx)
         data = {"selected_floor": "all"}
         result = select([], [], data)
@@ -309,4 +309,5 @@ def test_add_machine_does_not_change_selected_floor(monkeypatch):
     cards = render_cards(floors, machines, "new")
     children = cards.children if hasattr(cards, "children") else cards[1]
     assert len(children) == 1
+
 
