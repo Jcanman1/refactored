@@ -133,3 +133,15 @@ def test_machine_cards_after_add(monkeypatch):
     assert cards is not None
     assert cards != callbacks.no_update
     assert len(cards) == 1
+
+
+def test_floor_selection_updates_selected(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    select = registered["handle_floor_selection"]
+
+    for fid in [1, 2, 3]:
+        ctx = SimpleNamespace(triggered_id={"type": "floor-tile", "index": fid})
+        monkeypatch.setattr(callbacks, "callback_context", ctx)
+        data = {"selected_floor": "all"}
+        result = select([], [], data)
+        assert result["selected_floor"] == fid

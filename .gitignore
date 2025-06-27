@@ -109,3 +109,4 @@ ENV/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 exports/
+discovered_tags.txt
