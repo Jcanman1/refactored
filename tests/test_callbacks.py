@@ -311,6 +311,28 @@ def test_add_machine_does_not_change_selected_floor(monkeypatch):
     assert len(children) == 1
 
 
+def test_new_floor_layout_is_blank(monkeypatch):
+    """Adding a floor selects it and shows no machines."""
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_floor = registered["add_floor_cb"]
+    render_cards = registered["render_machine_cards"]
+
+    monkeypatch.setattr(callbacks, "_save_floor_machine_data", lambda f, m: True)
+
+    floors = {"floors": [{"id": 1, "name": "F1"}], "selected_floor": 1}
+    machines = {"machines": []}
+
+    new_floors = add_floor(1, floors, machines)
+    assert new_floors["selected_floor"] == 2
+
+    cards = render_cards(new_floors, machines, "new")
+    children = cards.children if hasattr(cards, "children") else cards[1]
+    if isinstance(children, (list, tuple)):
+        assert children[0] == "No machines configured"
+    else:
+        assert children == "No machines configured"
+
+
 def test_floor_selection_ignores_zero_click(monkeypatch):
     callbacks, registered = load_callbacks(monkeypatch)
     add_floor = registered["add_floor_cb"]
