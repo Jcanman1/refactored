@@ -90,34 +90,12 @@ def render_dashboard_shell() -> Any:
 
     return html.Div(
         [
-            dcc.Store(id="current-dashboard", data="main"),
+            dcc.Store(id="current-dashboard", data="new"),
             dcc.Store(id="floors-data", data=floors_data),
             dcc.Store(id="machines-data", data=machines_data),
             dcc.Store(id="active-machine-store", data={"machine_id": None}),
             header,
             connection_controls,
-            dbc.Row(
-                [
-                    dbc.Col(
-                        html.H4("Dashboard", className="m-2"),
-                        width="auto",
-                    ),
-                    dbc.Col(
-                        dcc.Dropdown(
-                            id="dashboard-selector",
-                            options=[
-                                {"label": "Main", "value": "main"},
-                                {"label": "Layout", "value": "layout"},
-                            ],
-                            value="main",
-                            clearable=False,
-                            className="w-100",
-                        ),
-                        width=2,
-                    ),
-                ],
-                className="g-2 align-items-center mb-2",
-            ),
             html.Div(id="dashboard-content"),
             settings_modal,
         ]

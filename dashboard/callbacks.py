@@ -347,16 +347,6 @@ def register_callbacks() -> None:
         return no_update, no_update
 
     @_dash_callback(
-        Output("current-dashboard", "data", allow_duplicate=True),
-        Input("dashboard-selector", "value"),
-        prevent_initial_call=True,
-    )
-    def switch_dashboard(value):
-        """Switch between dashboard views."""
-        return value or "main"
-
-
-    @_dash_callback(
         Output("machines-container", "children"),
         Input("floors-data", "data"),
         Input("machines-data", "data"),

@@ -66,3 +66,12 @@ def test_section_callbacks_exist(monkeypatch):
         result = func(*args)
         comp = result[0] if isinstance(result, tuple) else result
         assert comp is not None
+
+
+def test_manage_dashboard_toggle(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    manage = registered["manage_dashboard"]
+
+    assert manage(None, "new") == "new"
+    assert manage(1, "new") == "main"
+    assert manage(2, "main") == "new"
