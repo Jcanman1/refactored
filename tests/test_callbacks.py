@@ -129,6 +129,8 @@ def test_machine_cards_after_add(monkeypatch):
     machines = {"machines": []}
 
     machines = add_machine(1, machines, floors)
+    expected = f"{callbacks.tr('machine_label', callbacks.load_language_preference())} 1"
+    assert machines["machines"][0]["name"] == expected
     cards = render_cards(floors, machines, "new")
 
     assert cards is not None
