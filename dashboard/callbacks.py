@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 import base64
 import tempfile
+import copy
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -386,7 +387,7 @@ def register_callbacks() -> None:
         floors = list(floors_data.get("floors", []))
         next_id = max([f.get("id", 0) for f in floors] or [0]) + 1
         floors.append({"id": next_id, "name": f"Floor {next_id}", "editing": False})
-        new_floors = floors_data.copy()
+        new_floors = copy.deepcopy(floors_data)
         new_floors["floors"] = floors
         # Select the newly created floor so the machine list starts empty
         new_floors["selected_floor"] = next_id
@@ -572,7 +573,7 @@ def register_callbacks() -> None:
             floors = floors_data.get("floors", [])
             fid = floors[0]["id"] if floors else 1
         machines.append({"id": next_id, "floor_id": fid, "name": f"Machine {next_id}"})
-        new_machines = machines_data.copy()
+        new_machines = copy.deepcopy(machines_data)
         new_machines["machines"] = machines
         new_machines["next_machine_id"] = next_id + 1
         _save_floor_machine_data(floors_data, new_machines)
