@@ -626,7 +626,7 @@ def register_callbacks() -> None:
             className="mt-2 bg-primary text-white",
         )
 
-        return html.Div(dbc.Row(cols), summary_card)
+        return html.Div([dbc.Row(cols), summary_card])
 
     @_dash_callback(
         Output("machines-data", "data", allow_duplicate=True),
