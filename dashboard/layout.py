@@ -66,9 +66,24 @@ HEADER_CARD_HEIGHT = "65px"
 ROW1_TALL_HEIGHT = f"{2 * int(SECTION_HEIGHT[:-2]) + 9}px"
 ROW2_TALL_HEIGHT = f"{2 * int(SECTION_HEIGHT2[:-2]) + 8}px"
 
+# Flag indicating the shell layout has been generated at least once.
+_SHELL_INITIALIZED = False
+
+
+def _ensure_shell_initialized(func_name: str) -> None:
+    """Raise ``RuntimeError`` if the dashboard shell was not built."""
+
+    if not _SHELL_INITIALIZED:
+        raise RuntimeError(
+            f"{func_name} must be used inside render_dashboard_shell()"
+        )
+
 
 def render_dashboard_shell() -> Any:
     """Return the root layout with a dashboard switcher."""
+
+    global _SHELL_INITIALIZED
+    _SHELL_INITIALIZED = True
 
     floors_data, machines_data = load_layout()
     if not floors_data:
@@ -120,7 +135,14 @@ def render_dashboard_shell() -> Any:
 
 
 def render_new_dashboard() -> Any:
-    """Return the floor/machine management view."""
+    """Return the floor/machine management view.
+
+    This layout omits the top-level ``dcc.Store`` components required by the
+    callbacks.  It must be used inside :func:`render_dashboard_shell` or a
+    layout that provides those stores.
+    """
+
+    _ensure_shell_initialized("render_new_dashboard")
 
     floors_data, machines_data = load_layout()
     if not floors_data:
@@ -154,7 +176,14 @@ def render_new_dashboard() -> Any:
 
 
 def render_main_dashboard() -> Any:
-    """Return the visible grid of dashboard sections."""
+    """Return the visible grid of dashboard sections.
+
+    Like :func:`render_new_dashboard`, this produces a partial layout missing
+    the ``dcc.Store`` components used by callbacks.  Only use it within
+    :func:`render_dashboard_shell` or an equivalent wrapper.
+    """
+
+    _ensure_shell_initialized("render_main_dashboard")
 
     row1 = dbc.Row(
         [

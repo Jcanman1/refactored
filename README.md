@@ -34,9 +34,10 @@ python run_dashboard.py
 To embed the layout in another Dash application, import `render_dashboard_shell`
 from the `dashboard` package **and assign the return value to `app.layout`**.
 This shell initializes the required `dcc.Store` components such as
-`floors-data` and `machines-data`. Using `render_main_dashboard()` directly only
-returns the visible grid and omits these stores, which will cause callback
-errors.
+`floors-data` and `machines-data`. Assigning `render_main_dashboard()` or
+`render_new_dashboard()` to `app.layout` will mirror the legacy application's
+behaviour and lead to "component not found" errors because these helpers return
+only the inner grid without the prerequisite stores.
 
 Example:
 
