@@ -5,6 +5,7 @@ from typing import Any
 from .machine_layout import load_layout
 
 from .settings import load_language_preference, load_weight_preference
+from i18n import tr
 from .images import load_saved_image
 
 # ``dash`` is an optional dependency during testing.  These helpers fall
@@ -70,12 +71,29 @@ def render_dashboard_shell() -> Any:
     if not machines_data:
         machines_data = {"machines": [], "next_machine_id": 1}
 
+    header = html.Div(
+        [
+            html.H3(id="dashboard-title", children=tr("dashboard_title"), className="m-0"),
+            html.Div(
+                [
+                    dbc.Button(tr("switch_dashboards"), id="new-dashboard-btn", color="light", size="sm", className="me-2"),
+                    dbc.Button(tr("generate_report"), id="generate-report-btn", color="light", size="sm", className="me-2"),
+                    dbc.Button(html.I(className="fas fa-cog"), id="settings-button", color="secondary", size="sm"),
+                    dcc.Download(id="report-download"),
+                ],
+                className="ms-auto d-flex align-items-center",
+            ),
+        ],
+        className="d-flex justify-content-between align-items-center bg-primary text-white p-2 mb-2",
+    )
+
     return html.Div(
         [
             dcc.Store(id="current-dashboard", data="main"),
             dcc.Store(id="floors-data", data=floors_data),
             dcc.Store(id="machines-data", data=machines_data),
             dcc.Store(id="active-machine-store", data={"machine_id": None}),
+            header,
             dbc.Row(
                 [
                     dbc.Col(
@@ -99,6 +117,7 @@ def render_dashboard_shell() -> Any:
                 className="g-2 align-items-center mb-2",
             ),
             html.Div(id="dashboard-content"),
+            settings_modal,
         ]
     )
 
@@ -424,10 +443,34 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
     return render_floor_machine_layout_with_customizable_names()
 
 
+# Simplified settings modal used for configuration
+settings_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(html.Span(tr("system_settings_title"), id="settings-modal-header")),
+        dbc.ModalBody(
+            dbc.Tabs(
+                [
+                    dbc.Tab(html.Div("Display settings"), label="Display"),
+                    dbc.Tab(html.Div("System settings"), label="System"),
+                    dbc.Tab(html.Div("Email setup"), label="Email Setup"),
+                ]
+            )
+        ),
+        dbc.ModalFooter(
+            dbc.Button(tr("close"), id="close-settings", color="secondary")
+        ),
+    ],
+    id="settings-modal",
+    size="lg",
+    is_open=False,
+)
+
+
 __all__ = [
     "render_dashboard_wrapper",
     "render_new_dashboard",
     "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
+    "settings_modal",
 ]

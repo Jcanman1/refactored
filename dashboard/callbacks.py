@@ -543,6 +543,23 @@ def register_callbacks() -> None:
         return {"content": csv_data, "filename": f"satake_data_export_{timestamp}.csv"}
 
     @_dash_callback(
+        Output("settings-modal", "is_open"),
+        [Input("settings-button", "n_clicks"), Input("close-settings", "n_clicks")],
+        [State("settings-modal", "is_open")],
+        prevent_initial_call=True,
+    )
+    def toggle_settings_modal(open_clicks, close_clicks, is_open):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+        if trigger == "settings-button" and open_clicks:
+            return not is_open
+        if trigger == "close-settings" and close_clicks:
+            return False
+        return is_open
+
+    @_dash_callback(
         Output("section-1-2", "children"),
         Input("status-update-interval", "n_intervals"),
         State("production-data-store", "data"),
