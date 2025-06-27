@@ -443,6 +443,169 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
     return render_floor_machine_layout_with_customizable_names()
 
 
+# Connection controls replicated from the legacy dashboard
+connection_controls = dbc.Card(
+    dbc.CardBody(
+        [
+            dbc.Row(
+                [
+                    # Active Machine display
+                    dbc.Col(
+                        html.Div(
+                            [
+                                html.Span(
+                                    tr("active_machine_label"),
+                                    id="active-machine-label",
+                                    className="fw-bold small me-1",
+                                ),
+                                html.Span(
+                                    id="active-machine-display",
+                                    className="small",
+                                ),
+                            ],
+                            className="mt-1",
+                        ),
+                        width={"xs": 3, "md": 3},
+                        className="px-1",
+                    ),
+
+                    # Connection status text
+                    dbc.Col(
+                        html.Div(
+                            [
+                                html.Span(
+                                    tr("status_label"),
+                                    id="status-label",
+                                    className="fw-bold small me-1",
+                                ),
+                                html.Span(
+                                    tr("no_machine_selected"),
+                                    id="connection-status",
+                                    className="text-warning small",
+                                ),
+                            ],
+                            className="mt-1 ms-2",
+                        ),
+                        width={"xs": 2, "md": 2},
+                        className="px-1",
+                    ),
+
+                    # Mode selector dropdown
+                    dbc.Col(
+                        dcc.Dropdown(
+                            id="mode-selector",
+                            options=[
+                                {"label": tr("live_mode_option"), "value": "live"},
+                                {"label": tr("demo_mode_option"), "value": "demo"},
+                                {
+                                    "label": tr("historical_mode_option"),
+                                    "value": "historical",
+                                },
+                            ],
+                            value="live",
+                            clearable=False,
+                            searchable=False,
+                            className="small p-0",
+                            style={"min-width": "80px"},
+                        ),
+                        width={"xs": 1, "md": 1},
+                        className="px-1",
+                    ),
+
+                    # Historical time slider
+                    dbc.Col(
+                        html.Div(
+                            id="historical-time-controls",
+                            className="d-none",
+                            children=[
+                                dcc.Slider(
+                                    id="historical-time-slider",
+                                    min=1,
+                                    max=24,
+                                    step=None,
+                                    value=24,
+                                    marks={
+                                        1: {"label": "1hr", "style": {"fontSize": "8px"}},
+                                        4: {"label": "4hr", "style": {"fontSize": "8px"}},
+                                        8: {"label": "8hr", "style": {"fontSize": "8px"}},
+                                        12: {"label": "12hr", "style": {"fontSize": "8px"}},
+                                        24: {"label": "24hr", "style": {"fontSize": "8px"}},
+                                    },
+                                    included=False,
+                                    className="mt-1",
+                                ),
+                                html.Div(
+                                    id="historical-time-display",
+                                    className="small text-info text-center",
+                                    style={
+                                        "whiteSpace": "nowrap",
+                                        "fontSize": "0.7rem",
+                                        "marginTop": "-2px",
+                                    },
+                                ),
+                            ],
+                        ),
+                        width={"xs": 2, "md": 2},
+                        className="px-1",
+                    ),
+
+                    # Settings and export buttons
+                    dbc.Col(
+                        html.Div(
+                            dbc.ButtonGroup(
+                                [
+                                    dbc.Button(
+                                        html.I(className="fas fa-cog"),
+                                        id="settings-button",
+                                        color="secondary",
+                                        size="sm",
+                                        className="py-0 me-1",
+                                        style={"width": "38px"},
+                                    ),
+                                    html.Div(
+                                        id="export-button-container",
+                                        className="d-inline-block",
+                                        children=[
+                                            dbc.Button(
+                                                tr("export_data"),
+                                                id="export-data-button",
+                                                color="primary",
+                                                size="sm",
+                                                className="py-0",
+                                                disabled=True,
+                                            ),
+                                            dcc.Download(id="export-download"),
+                                        ],
+                                    ),
+                                ],
+                                className="",
+                            ),
+                            className="text-end",
+                        ),
+                        width={"xs": 4, "md": 4},
+                        className="px-1",
+                    ),
+
+                    # Hidden server name input
+                    dbc.Col(
+                        dbc.Input(
+                            id="server-name-input",
+                            value="Satake.EvoRGB.1",
+                            type="hidden",
+                        ),
+                        width=0,
+                        style={"display": "none"},
+                    ),
+                ],
+                className="g-0 align-items-center",
+            ),
+        ],
+        className="py-1 px-2",
+    ),
+    className="mb-1 mt-0",
+)
+
+
 # Simplified settings modal used for configuration
 settings_modal = dbc.Modal(
     [
@@ -472,5 +635,6 @@ __all__ = [
     "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
     "render_floor_machine_layout_enhanced_with_selection",
+    "connection_controls",
     "settings_modal",
 ]
