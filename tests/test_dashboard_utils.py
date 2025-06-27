@@ -189,6 +189,7 @@ def test_layout_functions_return_components(monkeypatch):
 
 
     for func in [
+        layout.render_dashboard_shell,
         layout.render_new_dashboard,
         layout.render_floor_machine_layout_with_customizable_names,
         layout.render_floor_machine_layout_enhanced_with_selection,

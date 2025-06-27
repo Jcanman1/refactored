@@ -20,6 +20,7 @@ try:  # pragma: no cover - optional dependency
         dcc,
         no_update,
     )  # type: ignore
+    import dash_bootstrap_components as dbc  # type: ignore
     HAS_DASH = True
 except Exception:  # pragma: no cover - provide minimal stubs
     from types import SimpleNamespace
@@ -49,6 +50,15 @@ except Exception:  # pragma: no cover - provide minimal stubs
     no_update = None  # type: ignore
     HAS_DASH = False
 
+    class _BootstrapModule:  # pragma: no cover - container returning ``html.Div``
+        def __getattr__(self, name: str):
+            def creator(*children: object, **props: object):
+                return html.Div(*children, **props)
+
+            return creator
+
+    dbc = _BootstrapModule()  # type: ignore
+
 from .app import app
 
 try:  # pragma: no cover - handle missing ``callback`` attribute
@@ -73,6 +83,10 @@ from .settings import (
     DEFAULT_EMAIL_SETTINGS,
     convert_capacity_from_kg,
     capacity_unit_label,
+)
+from .layout import (
+    render_new_dashboard,
+    render_floor_machine_layout_with_customizable_names,
 )
 from i18n import tr
 
@@ -274,6 +288,107 @@ def register_callbacks() -> None:
                 _save_floor_machine_data(floors_data, machines_data)
                 return floors_data, machines_data
         return no_update, no_update
+
+    @_dash_callback(
+        Output("current-dashboard", "data"),
+        Input("dashboard-selector", "value"),
+        prevent_initial_call=False,
+    )
+    def switch_dashboard(value):
+        """Switch between dashboard views."""
+        return value or "main"
+
+    @_dash_callback(
+        Output("dashboard-content", "children"),
+        Input("current-dashboard", "data"),
+    )
+    def render_dashboard(which):
+        if which == "layout":
+            return render_floor_machine_layout_with_customizable_names()
+        return render_new_dashboard()
+
+    @_dash_callback(
+        Output("machines-container", "children"),
+        Input("floors-data", "data"),
+        Input("machines-data", "data"),
+        Input("current-dashboard", "data"),
+    )
+    def render_machine_cards(floors_data, machines_data, which):
+        if which != "layout":
+            return no_update
+        selected = floors_data.get("selected_floor", "all")
+        machines = machines_data.get("machines", [])
+        if selected != "all":
+            machines = [m for m in machines if m.get("floor_id") == selected]
+        cards = []
+        for m in machines:
+            mid = m.get("id")
+            name = m.get("name", f"Machine {mid}")
+            card = dbc.Card(
+                dbc.CardBody(
+                    [
+                        html.Span(name),
+                        dbc.Button(
+                            "×",
+                            id={"type": "delete-machine-btn", "index": mid},
+                            size="sm",
+                            color="danger",
+                            className="ms-2",
+                        ),
+                    ],
+                    className="d-flex justify-content-between align-items-center",
+                ),
+                className="mb-2 machine-card-disconnected",
+            )
+            cards.append(card)
+        if not cards:
+            cards.append(html.Div("No machines configured"))
+        return cards
+
+    @_dash_callback(
+        Output("machines-data", "data", allow_duplicate=True),
+        Input("add-machine-btn", "n_clicks"),
+        State("machines-data", "data"),
+        State("floors-data", "data"),
+        prevent_initial_call=True,
+    )
+    def add_machine_cb(n_clicks, machines_data, floors_data):
+        if not n_clicks:
+            return no_update
+        machines = machines_data.get("machines", [])
+        next_id = machines_data.get("next_machine_id") or (
+            max([m.get("id", 0) for m in machines] or [0]) + 1
+        )
+        fid = floors_data.get("selected_floor", "all")
+        if fid == "all":
+            floors = floors_data.get("floors", [])
+            fid = floors[0]["id"] if floors else 1
+        machines.append({"id": next_id, "floor_id": fid, "name": f"Machine {next_id}"})
+        machines_data["machines"] = machines
+        machines_data["next_machine_id"] = next_id + 1
+        _save_floor_machine_data(floors_data, machines_data)
+        return machines_data
+
+    @_dash_callback(
+        Output("machines-data", "data", allow_duplicate=True),
+        Input({"type": "delete-machine-btn", "index": ALL}, "n_clicks"),
+        State({"type": "delete-machine-btn", "index": ALL}, "id"),
+        State("machines-data", "data"),
+        State("floors-data", "data"),
+        prevent_initial_call=True,
+    )
+    def delete_machine_cb(clicks, ids, machines_data, floors_data):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        for i, c in enumerate(clicks):
+            if c and i < len(ids):
+                mid = ids[i]["index"]
+                machines = [m for m in machines_data.get("machines", []) if m.get("id") != mid]
+                machines_data["machines"] = machines
+                _save_floor_machine_data(floors_data, machines_data)
+                return machines_data
+        return no_update
 
     @_dash_callback(
         Output("current-dashboard", "data", allow_duplicate=True),

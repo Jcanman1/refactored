@@ -54,6 +54,48 @@ SECTION_HEIGHT2 = "250px"
 HEADER_CARD_HEIGHT = "65px"
 
 
+def render_dashboard_shell() -> Any:
+    """Return the root layout with a dashboard switcher."""
+
+    floors_data, machines_data = load_layout()
+    if not floors_data:
+        floors_data = {"floors": [{"id": 1, "name": "1st Floor"}], "selected_floor": "all"}
+    if not machines_data:
+        machines_data = {"machines": [], "next_machine_id": 1}
+
+    return html.Div(
+        [
+            dcc.Store(id="current-dashboard", data="main"),
+            dcc.Store(id="floors-data", data=floors_data),
+            dcc.Store(id="machines-data", data=machines_data),
+            dcc.Store(id="active-machine-store", data={"machine_id": None}),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        html.H4("Dashboard", className="m-2"),
+                        width="auto",
+                    ),
+                    dbc.Col(
+                        dcc.Dropdown(
+                            id="dashboard-selector",
+                            options=[
+                                {"label": "Main", "value": "main"},
+                                {"label": "Layout", "value": "layout"},
+                            ],
+                            value="main",
+                            clearable=False,
+                            className="w-100",
+                        ),
+                        width=2,
+                    ),
+                ],
+                className="g-2 align-items-center mb-2",
+            ),
+            html.Div(id="dashboard-content"),
+        ]
+    )
+
+
 def render_new_dashboard() -> Any:
     """Return the main dashboard layout filled with visible sections."""
     grid = render_main_dashboard()
@@ -360,6 +402,7 @@ def render_floor_machine_layout_enhanced_with_selection() -> Any:
 
 
 __all__ = [
+    "render_dashboard_shell",
     "render_new_dashboard",
     "render_main_dashboard",
     "render_floor_machine_layout_with_customizable_names",
