@@ -93,6 +93,8 @@ from .settings import (
     load_email_settings,
     load_language_preference,
     load_weight_preference,
+    load_theme_preference,
+    save_theme_preference,
 
 )
 from .layout import (
@@ -766,6 +768,147 @@ def register_callbacks() -> None:
         if success:
             return "Email settings saved", settings
         return "Error saving email settings", no_update
+
+    def _render_saved_ip_list(ip_data: dict) -> object:
+        """Return HTML for the saved IP list."""
+        if not ip_data or not ip_data.get("addresses"):
+            return html.Div("No IP addresses saved", className="text-muted fst-italic")
+        rows = []
+        for item in ip_data["addresses"]:
+            ip = item.get("ip")
+            label = item.get("label")
+            rows.append(
+                dbc.Row(
+                    [
+                        dbc.Col(f"{label}: {ip}", width=9),
+                        dbc.Col(
+                            dbc.Button(
+                                "×",
+                                id={"type": "delete-ip-button", "index": ip},
+                                color="danger",
+                                size="sm",
+                                className="py-0 px-2",
+                            ),
+                            width=3,
+                            className="text-end",
+                        ),
+                    ],
+                    className="mb-2 border-bottom pb-2",
+                )
+            )
+        return html.Div(rows)
+
+    @_dash_callback(
+        Output("theme-selector", "value"),
+        Input("theme-selector", "value"),
+        prevent_initial_call=False,
+    )
+    def load_initial_theme(_value):
+        return load_theme_preference()
+
+    @_dash_callback(
+        Output("theme-selector", "value", allow_duplicate=True),
+        Input("theme-selector", "value"),
+        prevent_initial_call=True,
+    )
+    def save_theme_on_change(theme_value):
+        if theme_value:
+            save_theme_preference(theme_value)
+        return theme_value
+
+    @_dash_callback(
+        Output("ip-addresses-store", "data", allow_duplicate=True),
+        Output("saved-ip-list", "children"),
+        Output("new-ip-input", "value"),
+        Output("new-ip-label", "value"),
+        Output("system-settings-save-status", "children", allow_duplicate=True),
+        Input("add-ip-button", "n_clicks"),
+        State("new-ip-input", "value"),
+        State("new-ip-label", "value"),
+        State("ip-addresses-store", "data"),
+        prevent_initial_call=True,
+    )
+    def add_ip_address(n_clicks, new_ip, new_label, current_data):
+        if not n_clicks or not (new_ip and new_ip.strip()):
+            return no_update, no_update, no_update, no_update, no_update
+
+        if not new_label or not new_label.strip():
+            lang = load_language_preference()
+            new_label = f"{tr('machine_label', lang)} {len(current_data.get('addresses', [])) + 1}"
+
+        ip = new_ip.strip().lower()
+        localhost = ["localhost", "127.0.0.1", "::1"]
+        valid = False
+        if ip in localhost:
+            valid = True
+            if ip == "localhost":
+                ip = "127.0.0.1"
+        else:
+            parts = ip.split(".")
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                valid = True
+            else:
+                import re
+                if re.match(r"^[a-zA-Z0-9.-]+$", ip):
+                    valid = True
+
+        if not valid:
+            return no_update, no_update, "", no_update, "Invalid IP address, hostname, or localhost format"
+
+        addresses = list(current_data.get("addresses", []))
+        if any(item.get("ip") == ip for item in addresses):
+            return no_update, no_update, "", no_update, "IP address already exists"
+
+        addresses.append({"ip": ip, "label": new_label})
+        new_data = {"addresses": addresses}
+        save_ip_addresses(new_data)
+        return new_data, _render_saved_ip_list(new_data), "", "", "IP address added successfully"
+
+    @_dash_callback(
+        Output("delete-ip-trigger", "data"),
+        Input({"type": "delete-ip-button", "index": ALL}, "n_clicks"),
+        State({"type": "delete-ip-button", "index": ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def handle_delete_button(n_clicks_list, button_ids):
+        ctx = callback_context
+        if not ctx.triggered:
+            return no_update
+        idx = None
+        for i, c in enumerate(n_clicks_list):
+            if c:
+                idx = i
+                break
+        if idx is None or idx >= len(button_ids):
+            return no_update
+        ip_to_delete = button_ids[idx]["index"]
+        return {"ip": ip_to_delete, "timestamp": datetime.now().timestamp()}
+
+    @_dash_callback(
+        Output("ip-addresses-store", "data", allow_duplicate=True),
+        Output("saved-ip-list", "children"),
+        Output("delete-result", "children"),
+        Input("delete-ip-trigger", "data"),
+        State("ip-addresses-store", "data"),
+        prevent_initial_call=True,
+    )
+    def delete_ip_address(trigger_data, current_data):
+        if not trigger_data or "ip" not in trigger_data:
+            return no_update, no_update, no_update
+        ip_to_delete = trigger_data["ip"]
+        addresses = list(current_data.get("addresses", []))
+        found = False
+        label = ""
+        for i, item in enumerate(addresses):
+            if item.get("ip") == ip_to_delete:
+                label = item.get("label", "")
+                addresses.pop(i)
+                found = True
+                break
+        message = f"Deleted {label} ({ip_to_delete})" if found else "IP address not found"
+        new_data = {"addresses": addresses}
+        save_ip_addresses(new_data)
+        return new_data, _render_saved_ip_list(new_data), message
 
     @_dash_callback(
         Output("export-download", "data"),
