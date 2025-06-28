@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import pandas as pd
+import logging
 from datetime import timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -16,48 +17,13 @@ import math  # for label angle calculations
 
 from hourly_data_saving import EXPORT_DIR as METRIC_EXPORT_DIR, get_historical_data
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logging.getLogger().handlers.clear()
+logger = logging.getLogger(__name__)
 
-def debug_machine_data(csv_parent_dir):
-    """Debug function to check what data is being loaded from each machine"""
-    machines = sorted([d for d in os.listdir(csv_parent_dir)
-                       if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
-    
-    print(f"Found machines: {machines}")
-    
-    for m in machines:
-        fp = os.path.join(csv_parent_dir, m, 'last_24h_metrics.csv')
-        print(f"\nMachine {m}:")
-        print(f"  File path: {fp}")
-        print(f"  File exists: {os.path.isfile(fp)}")
-        
-        if os.path.isfile(fp):
-            try:
-                df = pd.read_csv(fp)
-                print(f"  Rows: {len(df)}")
-                print(f"  Columns: {list(df.columns)}")
-                
-                if 'capacity' in df.columns:
-                    print(f"  Capacity column found")
-                    print(f"  Capacity data sample: {df['capacity'].head().tolist()}")
-                    print(f"  Capacity sum: {df['capacity'].sum()}")
-                    print(f"  Capacity max: {df['capacity'].max()}")
-                else:
-                    print(f"  WARNING: No 'capacity' column found!")
-                
-                if 'timestamp' in df.columns:
-                    print(f"  Timestamp column found")
-                    try:
-                        df_parsed = pd.read_csv(fp, parse_dates=['timestamp'])
-                        print(f"  Timestamp parsing successful")
-                        print(f"  First timestamp: {df_parsed['timestamp'].iloc[0]}")
-                        print(f"  Last timestamp: {df_parsed['timestamp'].iloc[-1]}")
-                    except Exception as e:
-                        print(f"  Timestamp parsing failed: {e}")
-                else:
-                    print(f"  WARNING: No 'timestamp' column found!")
-                    
-            except Exception as e:
-                print(f"  ERROR reading CSV: {e}")
 
 
 def draw_header(c, width, height, page_number=None):
@@ -66,12 +32,12 @@ def draw_header(c, width, height, page_number=None):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Check what font files actually exist in the directory
-    print(f"DEBUG: Checking directory: {script_dir}")
+    logger.debug(f"Checking directory: {script_dir}")
     try:
         files_in_dir = [f for f in os.listdir(script_dir) if f.lower().endswith('.ttf')]
-        print(f"DEBUG: TTF files found in directory: {files_in_dir}")
+        logger.debug(f"TTF files found in directory: {files_in_dir}")
     except Exception as e:
-        print(f"DEBUG: Error listing directory: {e}")
+        logger.debug(f"Error listing directory: {e}")
     
     # Try different possible filenames for Audiowide font
     possible_font_files = [
@@ -86,25 +52,25 @@ def draw_header(c, width, height, page_number=None):
     
     for font_filename in possible_font_files:
         font_path = os.path.join(script_dir, font_filename)
-        print(f"DEBUG: Trying font file: {font_path}")
+        logger.debug(f"Trying font file: {font_path}")
         
         if os.path.isfile(font_path):
             try:
                 pdfmetrics.registerFont(TTFont('Audiowide', font_path))
                 font_enpresor = 'Audiowide'
-                print(f"DEBUG: ✅ Successfully registered Audiowide from: {font_path}")
+                logger.debug(f"\u2705 Successfully registered Audiowide from: {font_path}")
                 font_found = True
                 break
             except Exception as e:
-                print(f"DEBUG: ❌ Error registering font from {font_path}: {e}")
+                logger.debug(f"\u274C Error registering font from {font_path}: {e}")
         else:
-            print(f"DEBUG: ❌ Font file not found: {font_path}")
+            logger.debug(f"\u274C Font file not found: {font_path}")
     
     if not font_found:
-        print("DEBUG: ⚠️  No Audiowide font file found.")
-        print("DEBUG: The file you downloaded might be named 'Audiowide-Regular.ttf'")
-        print("DEBUG: Either rename it to 'Audiowide.ttf' or ensure 'Audiowide-Regular.ttf' is in:")
-        print(f"DEBUG: {script_dir}")
+        logger.debug("\u26A0\ufe0f  No Audiowide font file found.")
+        logger.debug("The file you downloaded might be named 'Audiowide-Regular.ttf'")
+        logger.debug("Either rename it to 'Audiowide.ttf' or ensure 'Audiowide-Regular.ttf' is in:")
+        logger.debug(f"{script_dir}")
 
     # Document title
     title_size = 24
@@ -130,7 +96,7 @@ def draw_header(c, width, height, page_number=None):
     c.setFont(font_enpresor, title_size)
     c.setFillColor(colors.red)
     c.drawString(start_x + w_sat, y_title, enpresor)
-    print(f"DEBUG: Drawing 'Enpresor' with font: {font_enpresor}")
+    logger.debug(f"Drawing 'Enpresor' with font: {font_enpresor}")
     
     # Draw " Data Report" in black
     c.setFont(font_default, title_size)
@@ -299,7 +265,7 @@ def draw_global_summary(c, csv_parent_dir, x0, y0, total_w, available_height):
                         all_t.extend(t)
                         mx = max(mx, capacity_vals.max())
             except Exception as e:
-                print(f"Error processing trend data for machine {m}: {e}")
+                logger.error(f"Error processing trend data for machine {m}: {e}")
     
     # Draw the trend graph
     tp=10; bw, bh=w_right-2*tp, h2-2*tp
@@ -398,7 +364,7 @@ def calculate_global_max_firing_average(csv_parent_dir):
                         if not pd.isna(avg_val):
                             global_max = max(global_max, avg_val)
             except Exception as e:
-                print(f"Error calculating max for machine {machine}: {e}")
+                logger.error(f"Error calculating max for machine {machine}: {e}")
     
     return global_max
 
@@ -414,8 +380,8 @@ def generate_report_filename(script_dir):
     # Create full path
     pdf_path = os.path.join(script_dir, filename)
     
-    print(f"Generated filename: {filename}")
-    print(f"Full path: {pdf_path}")
+    logger.debug(f"Generated filename: {filename}")
+    logger.debug(f"Full path: {pdf_path}")
 
     return pdf_path
 
@@ -462,7 +428,7 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
     try:
         df = pd.read_csv(fp)
     except Exception as e:
-        print(f"Error reading data for machine {machine}: {e}")
+        logger.error(f"Error reading data for machine {machine}: {e}")
         return y_start
     
     # OPTIMIZED DIMENSIONS FOR 2 MACHINES PER PAGE
@@ -709,14 +675,13 @@ def draw_machine_sections(c, csv_parent_dir, machine, x0, y_start, total_w, avai
 
 def draw_layout_optimized(pdf_path, csv_parent_dir):
     """Optimized version - CONSISTENT SIZING, 2 machines per page"""
-    print("=== DEBUGGING MACHINE DATA ===")
-    debug_machine_data(csv_parent_dir)
-    print("==============================\n")
+    logger.debug("=== DEBUGGING MACHINE DATA ===")
+    logger.debug("==============================")
     
     # Calculate global maximum firing average first
-    print("Calculating global maximum firing average...")
+    logger.debug("Calculating global maximum firing average...")
     global_max_firing = calculate_global_max_firing_average(csv_parent_dir)
-    print(f"Global maximum firing average: {global_max_firing:.2f}")
+    logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
@@ -728,11 +693,11 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
     machines = sorted([d for d in os.listdir(csv_parent_dir)
                        if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
     
-    print(f"Processing {len(machines)} machines: {machines}")
+    logger.debug(f"Processing {len(machines)} machines: {machines}")
     
     # PAGE 1: Global summary ONLY
     page_number = 1
-    print("Creating Page 1: Global Summary Only")
+    logger.debug("Creating Page 1: Global Summary Only")
     content_start_y = draw_header(c, width, height, page_number)
     available_height = content_start_y - margin - 50
     
@@ -748,7 +713,7 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
         # Start new page for machines (page 2, 3, 4, etc.)
         c.showPage()
         page_number += 1
-        print(f"Creating Page {page_number}: Machines {machine_batch}")
+        logger.debug(f"Creating Page {page_number}: Machines {machine_batch}")
         
         # Draw header with page number
         content_start_y = draw_header(c, width, height, page_number)
@@ -760,29 +725,32 @@ def draw_layout_optimized(pdf_path, csv_parent_dir):
         current_y = content_start_y
         
         for machine_idx, machine in enumerate(machine_batch):
-            print(f"  Drawing Machine {machine} ({machine_idx + 1}/{len(machine_batch)}) - FIXED SIZE")
+            logger.debug(
+                f"  Drawing Machine {machine} ({machine_idx + 1}/{len(machine_batch)}) - FIXED SIZE"
+            )
             current_y = draw_machine_sections(c, csv_parent_dir, machine, x0, 
                                             current_y, total_w, fixed_height_per_machine, global_max_firing)
             # FIXED spacing between machines
             current_y -= 20
     
     c.save()
-    print(f"Optimized multi-page layout saved at: {os.path.abspath(pdf_path)}")
-    print(f"Total pages created: {page_number}")
-    print(f"Page 1: Global Summary")
-    print(f"Pages 2+: Individual machines (CONSISTENT sizing, max {machines_per_page} per page)")
+    logger.info(f"Optimized multi-page layout saved at: {os.path.abspath(pdf_path)}")
+    logger.info(f"Total pages created: {page_number}")
+    logger.info("Page 1: Global Summary")
+    logger.info(
+        f"Pages 2+: Individual machines (CONSISTENT sizing, max {machines_per_page} per page)"
+    )
 
 
 def draw_layout_standard(pdf_path, csv_parent_dir):
     """Standard layout - CONSISTENT SIZING with dynamic page breaks"""
-    print("=== DEBUGGING MACHINE DATA ===")
-    debug_machine_data(csv_parent_dir)
-    print("==============================\n")
+    logger.debug("=== DEBUGGING MACHINE DATA ===")
+    logger.debug("==============================")
     
     # Calculate global maximum firing average first
-    print("Calculating global maximum firing average...")
+    logger.debug("Calculating global maximum firing average...")
     global_max_firing = calculate_global_max_firing_average(csv_parent_dir)
-    print(f"Global maximum firing average: {global_max_firing:.2f}")
+    logger.debug(f"Global maximum firing average: {global_max_firing:.2f}")
     
     c = canvas.Canvas(pdf_path, pagesize=letter)
     width, height = letter
@@ -795,11 +763,11 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
     machines = sorted([d for d in os.listdir(csv_parent_dir)
                        if os.path.isdir(os.path.join(csv_parent_dir, d)) and d.isdigit()])
     
-    print(f"Processing {len(machines)} machines: {machines}")
+    logger.debug(f"Processing {len(machines)} machines: {machines}")
     
     # PAGE 1: Global summary ONLY
     page_number = 1
-    print("Creating Page 1: Global Summary Only")
+    logger.debug("Creating Page 1: Global Summary Only")
     content_start_y = draw_header(c, width, height, page_number)
     available_height = content_start_y - margin - 50
     
@@ -811,22 +779,22 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
     next_y = None  # Will be set when we start page 2
     
     for machine in machines:
-        print(f"Processing Machine {machine}")
+        logger.debug(f"Processing Machine {machine}")
         
         # Check if we need a new page or if this is the first machine
         if next_y is None or (next_y - margin) < fixed_machine_height:
             # Start new page
-            print(f"Starting new page for Machine {machine}")
+            logger.debug(f"Starting new page for Machine {machine}")
             c.showPage()
             page_number += 1
-            print(f"Creating Page {page_number}: Machine {machine}")
+            logger.debug(f"Creating Page {page_number}: Machine {machine}")
             
             # Draw header on new page with page number
             content_start_y = draw_header(c, width, height, page_number)
             next_y = content_start_y
         
         # Draw machine sections with FIXED height and global max
-        print(f"  Drawing Machine {machine} - FIXED SIZE ({fixed_machine_height}px)")
+        logger.debug(f"  Drawing Machine {machine} - FIXED SIZE ({fixed_machine_height}px)")
         next_y = draw_machine_sections(c, csv_parent_dir, machine, x0, next_y, 
                                      total_w, fixed_machine_height, global_max_firing)
         
@@ -836,10 +804,10 @@ def draw_layout_standard(pdf_path, csv_parent_dir):
         next_y -= 20
     
     c.save()
-    print(f"Standard multi-page layout saved at: {os.path.abspath(pdf_path)}")
-    print(f"Total pages created: {page_number}")
-    print(f"Page 1: Global Summary")
-    print(f"Pages 2+: Individual machines (CONSISTENT sizing)")
+    logger.info(f"Standard multi-page layout saved at: {os.path.abspath(pdf_path)}")
+    logger.info(f"Total pages created: {page_number}")
+    logger.info("Page 1: Global Summary")
+    logger.info("Pages 2+: Individual machines (CONSISTENT sizing)")
 
 
 if __name__=='__main__':
@@ -853,8 +821,8 @@ if __name__=='__main__':
     use_optimized = len(sys.argv) > 2 and sys.argv[2] == '--optimized'
     
     if use_optimized:
-        print("Using optimized layout (2 machines per page)...")
+        logger.info("Using optimized layout (2 machines per page)...")
         draw_layout_optimized(pdf_path, exp_arg)
     else:
-        print("Using standard layout (dynamic page breaks)...")
+        logger.info("Using standard layout (dynamic page breaks)...")
         draw_layout_standard(pdf_path, exp_arg)
