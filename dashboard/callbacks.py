@@ -106,6 +106,7 @@ from .layout import (
     render_floor_machine_layout_with_customizable_names,
     build_machine_card,
 )
+from .images import save_uploaded_image
 
 
 from i18n import tr
