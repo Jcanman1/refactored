@@ -44,6 +44,7 @@ def load_callbacks(monkeypatch):
         def wrapper(func):
             registered[func.__name__] = func
             return func
+
         return wrapper
 
     setattr(app_mod.app, "callback", fake_callback)
@@ -129,7 +130,9 @@ def test_machine_cards_after_add(monkeypatch):
     machines = {"machines": []}
 
     machines = add_machine(1, machines, floors)
-    expected = f"{callbacks.tr('machine_label', callbacks.load_language_preference())} 1"
+    expected = (
+        f"{callbacks.tr('machine_label', callbacks.load_language_preference())} 1"
+    )
     assert machines["machines"][0]["name"] == expected
     cards = render_cards(floors, machines, "new")
 
@@ -159,7 +162,9 @@ def test_floor_selection_fallback_to_triggered(monkeypatch):
 
     for fid in [1, 2, 3]:
         prop = json.dumps({"type": "floor-tile", "index": fid}) + ".n_clicks"
-        ctx = SimpleNamespace(triggered=[{"prop_id": prop, "value": 1}], triggered_id=None)
+        ctx = SimpleNamespace(
+            triggered=[{"prop_id": prop, "value": 1}], triggered_id=None
+        )
         monkeypatch.setattr(callbacks, "callback_context", ctx)
         data = {"selected_floor": "all"}
         result = select([], [], data)
@@ -374,3 +379,36 @@ def test_floor_selection_ignores_zero_click(monkeypatch):
         assert children == "No machines configured"
 
 
+def test_load_initial_theme(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    func = registered["load_initial_theme"]
+    monkeypatch.setattr(callbacks, "load_theme_preference", lambda: "dark")
+    assert func(None) == "dark"
+
+
+def test_add_and_delete_ip_address(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    add_ip = registered["add_ip_address"]
+    delete_ip = registered["delete_ip_address"]
+    render_list = registered["update_saved_ip_list"]
+
+    store = {"addresses": []}
+    store, _, _, msg = add_ip(1, "1.2.3.4", "M1", store)
+    assert msg == "IP address added successfully"
+    assert store["addresses"][0]["ip"] == "1.2.3.4"
+    comp = render_list(store)
+    children = comp.children if hasattr(comp, "children") else comp[1]
+    if len(children) == 1 and isinstance(children[0], list):
+        children = children[0]
+    assert len(children) == 1
+
+    trigger = {"ip": "1.2.3.4"}
+    store, msg = delete_ip(trigger, store)
+    assert "Deleted" in msg
+    assert store["addresses"] == []
+    comp = render_list(store)
+    children = comp.children if hasattr(comp, "children") else comp[1]
+    if isinstance(children, (list, tuple)):
+        assert children[0] == "No IP addresses saved"
+    else:
+        assert children == "No IP addresses saved"
