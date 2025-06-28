@@ -9,6 +9,8 @@ from .settings import (
     load_weight_preference,
     load_ip_addresses,
     load_threshold_settings,
+    load_theme_preference,
+    load_email_settings,
 )
 from i18n import tr
 from .images import load_saved_image
@@ -1013,16 +1015,238 @@ threshold_modal = dbc.Modal(
 )
 
 
-# Simplified settings modal used for configuration
+# Settings modal mirroring the legacy dashboard configuration options
+email_settings = load_email_settings()
+theme_pref = load_theme_preference()
+weight_pref = load_weight_preference()
+language_pref = load_language_preference()
 settings_modal = dbc.Modal(
     [
         dbc.ModalHeader(html.Span(tr("system_settings_title"), id="settings-modal-header")),
         dbc.ModalBody(
             dbc.Tabs(
                 [
-                    dbc.Tab(html.Div("Display settings"), label="Display"),
-                    dbc.Tab(html.Div("System settings"), label="System"),
-                    dbc.Tab(html.Div("Email setup"), label="Email Setup"),
+                    # Display tab
+                    dbc.Tab(
+                        html.Div(
+                            [
+                                html.P(tr("display_settings_title"), className="lead mt-2", id="display-settings-subtitle"),
+                                html.Hr(),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Label(tr("color_theme_label"), className="fw-bold", id="color-theme-label"),
+                                            width=4,
+                                        ),
+                                        dbc.Col(
+                                            dbc.RadioItems(
+                                                id="theme-selector",
+                                                options=[
+                                                    {"label": tr("light_mode_option"), "value": "light"},
+                                                    {"label": tr("dark_mode_option"), "value": "dark"},
+                                                ],
+                                                value=theme_pref,
+                                                inline=True,
+                                            ),
+                                            width=8,
+                                        ),
+                                    ],
+                                    className="mb-3",
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Label(tr("capacity_units_label"), className="fw-bold", id="capacity-units-label"),
+                                            width=4,
+                                        ),
+                                        dbc.Col(
+                                            [
+                                                dbc.RadioItems(
+                                                    id="capacity-units-selector",
+                                                    options=[
+                                                        {"label": "Kg", "value": "kg"},
+                                                        {"label": "Lbs", "value": "lb"},
+                                                        {"label": "Custom", "value": "custom"},
+                                                    ],
+                                                    value=weight_pref.get("unit", "lb"),
+                                                    inline=True,
+                                                ),
+                                                dbc.Input(
+                                                    id="custom-unit-name",
+                                                    type="text",
+                                                    placeholder="Unit Name",
+                                                    className="mt-2",
+                                                    style={"display": "none"},
+                                                    value=weight_pref.get("label", ""),
+                                                ),
+                                                dbc.Input(
+                                                    id="custom-unit-weight",
+                                                    type="number",
+                                                    placeholder="Weight in lbs",
+                                                    className="mt-2",
+                                                    style={"display": "none"},
+                                                    value=weight_pref.get("value", 1.0),
+                                                ),
+                                            ],
+                                            width=8,
+                                        ),
+                                    ],
+                                    className="mb-3",
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            dbc.Label(tr("language_label"), className="fw-bold", id="language-label"),
+                                            width=4,
+                                        ),
+                                        dbc.Col(
+                                            dbc.RadioItems(
+                                                id="language-selector",
+                                                options=[
+                                                    {"label": tr("english_option"), "value": "en"},
+                                                    {"label": tr("spanish_option"), "value": "es"},
+                                                    {"label": tr("japanese_option"), "value": "ja"},
+                                                ],
+                                                value=language_pref,
+                                                inline=True,
+                                            ),
+                                            width=8,
+                                        ),
+                                    ],
+                                    className="mb-3",
+                                ),
+                            ]
+                        ),
+                        label=tr("display_tab_label"),
+                    ),
+                    # System tab
+                    dbc.Tab(
+                        html.Div(
+                            [
+                                html.P(tr("system_configuration_title"), className="lead mt-2", id="system-configuration-title"),
+                                html.Hr(),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(dbc.Label(tr("auto_connect_label"), id="auto-connect-label"), width=8),
+                                        dbc.Col(
+                                            dbc.Switch(id="auto-connect-switch", value=True, className="float-end"),
+                                            width=4,
+                                        ),
+                                    ],
+                                    className="mb-3",
+                                ),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(dbc.Label(tr("add_machine_ip_label"), id="add-machine-ip-label"), width=3),
+                                        dbc.Col(
+                                            dbc.InputGroup(
+                                                [
+                                                    dbc.Input(
+                                                        id="new-ip-label",
+                                                        value="",
+                                                        type="text",
+                                                        placeholder=tr("machine_name_placeholder"),
+                                                        size="sm",
+                                                    ),
+                                                    dbc.Input(
+                                                        id="new-ip-input",
+                                                        value="",
+                                                        type="text",
+                                                        placeholder=tr("ip_address_placeholder"),
+                                                        size="sm",
+                                                    ),
+                                                    dbc.Button(tr("add_button"), id="add-ip-button", color="primary", size="sm"),
+                                                ]
+                                            ),
+                                            width=9,
+                                        ),
+                                    ],
+                                    className="mb-3",
+                                ),
+                                html.Div(
+                                    [
+                                        html.P(tr("saved_machine_ips"), className="mt-3 mb-2"),
+                                        html.Div(id="delete-result", className="mb-2 text-success"),
+                                        html.Div(id="saved-ip-list", className="border p-2 mb-3", style={"minHeight": "100px"}),
+                                    ]
+                                ),
+                                dbc.Button(
+                                    tr("save_system_settings"),
+                                    id="save-system-settings",
+                                    color="success",
+                                    className="mt-3 w-100",
+                                ),
+                                html.Div(id="system-settings-save-status", className="text-success mt-2"),
+                            ]
+                        ),
+                        label=tr("system_tab_label"),
+                    ),
+                    # Email setup tab
+                    dbc.Tab(
+                        html.Div(
+                            [
+                                html.P(tr("smtp_email_configuration_title"), className="lead mt-2", id="smtp-email-configuration-title"),
+                                html.Hr(),
+                                dbc.Row([
+                                    dbc.Col(dbc.Label(tr("smtp_server_label"), id="smtp-server-label"), width=4),
+                                    dbc.Col(dbc.Input(id="smtp-server-input", type="text", value=email_settings.get("smtp_server", "")), width=8),
+                                ], className="mb-3"),
+                                dbc.Row([
+                                    dbc.Col(dbc.Label(tr("port_label"), id="smtp-port-label"), width=4),
+                                    dbc.Col(dbc.Input(id="smtp-port-input", type="number", value=email_settings.get("smtp_port", 587)), width=8),
+                                ], className="mb-3"),
+                                dbc.Row([
+                                    dbc.Col(dbc.Label(tr("username_label"), id="smtp-username-label"), width=4),
+                                    dbc.Col(dbc.Input(id="smtp-username-input", type="text", value=email_settings.get("smtp_username", "")), width=8),
+                                ], className="mb-3"),
+                                dbc.Row([
+                                    dbc.Col(dbc.Label(tr("password_label"), id="smtp-password-label"), width=4),
+                                    dbc.Col(dbc.Input(id="smtp-password-input", type="password", value=email_settings.get("smtp_password", "")), width=8),
+                                ], className="mb-3"),
+                                dbc.Row([
+                                    dbc.Col(dbc.Label(tr("from_address_label"), id="smtp-from-label"), width=4),
+                                    dbc.Col(dbc.Input(id="smtp-sender-input", type="email", value=email_settings.get("from_address", "")), width=8),
+                                ], className="mb-3"),
+                                dbc.Button(
+                                    tr("save_email_settings"),
+                                    id="save-email-settings",
+                                    color="success",
+                                    className="mt-3 w-100",
+                                ),
+                                html.Div(id="email-settings-save-status", className="text-success mt-2"),
+                            ]
+                        ),
+                        label=tr("email_tab_label"),
+                    ),
+                    # About tab
+                    dbc.Tab(
+                        html.Div(
+                            [
+                                html.P(tr("about_this_dashboard_title"), className="lead mt-2"),
+                                html.Hr(),
+                                html.P([
+                                    "Satake Enpresor Monitor Dashboard ",
+                                    html.Span("v1.0.3", className="badge bg-secondary"),
+                                ]),
+                                html.P("OPC UA Monitoring System for Satake Enpresor RGB Sorters"),
+                                html.P(
+                                    "© 2023 Satake USA, Inc. All rights reserved.",
+                                    className="text-muted small",
+                                ),
+                                html.Hr(),
+                                html.P("Support Contact:", className="mb-1 fw-bold"),
+                                html.P([
+                                    html.I(className="fas fa-envelope me-2"),
+                                    "techsupport@satake-usa.com",
+                                ], className="mb-1"),
+                                html.P([
+                                    html.I(className="fas fa-phone me-2"),
+                                    "(281) 276-3700",
+                                ], className="mb-1"),
+                            ]
+                        ),
+                        label=tr("about_tab_label"),
+                    ),
                 ]
             )
         ),

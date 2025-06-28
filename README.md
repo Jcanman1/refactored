@@ -85,3 +85,5 @@ python EnpresorOPCDataViewBeforeRestructureLegacy.py
 ```
 
 Refer to this file whenever implementing or modifying functionality to ensure the modern code stays aligned with the legacy version.
+
+The new dashboard replicates all legacy settings features including theme selection, capacity units, language options, IP address management and SMTP email configuration.
