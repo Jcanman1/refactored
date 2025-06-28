@@ -351,7 +351,7 @@ def send_threshold_email(sensitivity_num: int, is_high: bool = True) -> bool:
 
 
 @_dash_callback(
-    Output("theme-selector", "value"),
+    Output("theme-selector", "value", allow_duplicate=True),
     Input("auto-connect-trigger", "data"),
     prevent_initial_call=False,
 )
@@ -985,7 +985,7 @@ def register_callbacks() -> None:
     globals()["update_saved_ip_list"] = update_saved_ip_list
 
     @_dash_callback(
-        Output("theme-selector", "value"),
+        Output("theme-selector", "value", allow_duplicate=True),
         Input("theme-selector", "value"),
         prevent_initial_call=False,
     )
