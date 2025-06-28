@@ -100,8 +100,6 @@ def render_dashboard_shell() -> Any:
                 [
                     dbc.Button(tr("switch_dashboards"), id="new-dashboard-btn", color="light", size="sm", className="me-2"),
                     dbc.Button(tr("generate_report"), id="generate-report-btn", color="light", size="sm", className="me-2"),
-                    # settings button in the header opens the configuration modal
-                    dbc.Button(html.I(className="fas fa-cog"), id="header-settings-button", color="secondary", size="sm"),
                     dcc.Download(id="report-download"),
                 ],
                 className="ms-auto d-flex align-items-center",

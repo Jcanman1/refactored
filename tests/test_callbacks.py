@@ -412,3 +412,22 @@ def test_add_and_delete_ip_address(monkeypatch):
         assert children[0] == "No IP addresses saved"
     else:
         assert children == "No IP addresses saved"
+
+
+def test_settings_modal_toggle_single_button(monkeypatch):
+    callbacks, registered = load_callbacks(monkeypatch)
+    toggle = registered["toggle_settings_modal"]
+
+    ctx = SimpleNamespace(
+        triggered=[{"prop_id": "settings-button.n_clicks", "value": 1}],
+        triggered_id=None,
+    )
+    monkeypatch.setattr(callbacks, "callback_context", ctx)
+    assert toggle(1, None, False) is True
+
+    ctx = SimpleNamespace(
+        triggered=[{"prop_id": "close-settings.n_clicks", "value": 1}],
+        triggered_id=None,
+    )
+    monkeypatch.setattr(callbacks, "callback_context", ctx)
+    assert toggle(None, 1, True) is False
