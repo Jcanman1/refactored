@@ -125,6 +125,7 @@ def render_dashboard_shell() -> Any:
             dcc.Store(id="language-preference-store", data=load_language_preference()),
             dcc.Store(id="additional-image-store", data=load_saved_image()),
             dcc.Store(id="delete-pending-store", data={}),
+            dcc.Store(id="delete-ip-trigger", data={}),
             header,
             connection_controls,
             html.Div(id="dashboard-content"),
